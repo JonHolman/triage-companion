@@ -1,0 +1,21 @@
+{
+  "name": "triage-companion",
+  "version": "1.0.0",
+  "description": "Terminal tool for developer productivity - GitHub, Snyk, Jira, and Git status in one place.",
+  "type": "module",
+  "bin": {
+    "triage-companion": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test src/**/*.test.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
