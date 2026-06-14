@@ -1,1 +1,10 @@
 node_modules/
+secrets.json
+.env
+.env.*
+!.env.example
+coverage/
+review-artifacts/
+*.log
+*.tmp
+.DS_Store

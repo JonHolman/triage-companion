@@ -3,19 +3,37 @@
   "version": "1.0.0",
   "description": "Terminal tool for developer productivity - GitHub, Snyk, Jira, and Git status in one place.",
   "type": "module",
+  "files": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "README.md",
+    "AGENTS.md",
+    "tsconfig.json"
+  ],
   "bin": {
-    "triage-companion": "./src/index.js"
+    "triage-companion": "./src/index.ts"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "test": "node --test src/**/*.test.js"
+    "start": "node src/index.ts",
+    "test": "node --test --test-concurrency=1 src/*.test.ts src/**/*.test.ts",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=26.0.0"
   },
   "dependencies": {
     "commander": "^12.1.0"
   },
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.9.3",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
+    "typescript": "^6.0.3"
+  }
 }

@@ -1,0 +1,122 @@
+import os from "node:os";
+import path from "node:path";
+
+import { ENV } from "./config-model.ts";
+
+export function trimEnvValue(value: string | undefined | null): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function textEnvOverrideState(
+  value: string | undefined | null,
+): "missing" | "valid" | "invalid" {
+  if (value === undefined || value === null) {
+    return "missing";
+  }
+
+  if (value.trim().length === 0) {
+    return "invalid";
+  }
+  if (value.trim() !== value) {
+    return "invalid";
+  }
+
+  return /[\u0000-\u001F\u007F-\u009F]/.test(value) ? "invalid" : "valid";
+}
+
+export function expandHomePath(candidate: string): string {
+  if (candidate === "~") {
+    return validatedHomeDirectory();
+  }
+
+  if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
+    const homeDirectory = validatedHomeDirectory();
+    return path.join(homeDirectory, candidate.slice(2));
+  }
+
+  return candidate;
+}
+
+export function validatedHomeDirectory(): string {
+  const homeDirectory = os.homedir();
+  if (homeDirectory.trim().length === 0) {
+    throw new Error("Home directory is invalid: must not be empty.");
+  }
+  if (homeDirectory.trim() !== homeDirectory) {
+    throw new Error("Home directory is invalid: must not include surrounding whitespace.");
+  }
+  if (/[\u0000-\u001F\u007F-\u009F]/.test(homeDirectory)) {
+    throw new Error("Home directory is invalid: must not include control characters.");
+  }
+
+  return homeDirectory;
+}
+
+function expandConfiguredHomePath(candidate: string): string {
+  if (candidate === "~") {
+    return validatedHomeDirectory();
+  }
+
+  if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
+    const homeDirectory = validatedHomeDirectory();
+    return path.join(homeDirectory, candidate.slice(2));
+  }
+
+  return candidate;
+}
+
+function validatedEnvPathOverride(
+  value: string | undefined,
+  envName: string,
+): string | null {
+  const trimmed = trimEnvValue(value);
+  if (trimmed === null) {
+    return null;
+  }
+
+  if (trimmed !== value) {
+    throw new Error(`${envName} is invalid: must not include surrounding whitespace.`);
+  }
+
+  if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
+    throw new Error(`${envName} is invalid: must not include control characters.`);
+  }
+
+  return expandConfiguredHomePath(value);
+}
+
+export function resolveConfigDirectory(): string {
+  const configured = validatedEnvPathOverride(process.env[ENV.CONFIG_DIR], ENV.CONFIG_DIR);
+  if (configured !== null) {
+    return configured;
+  }
+
+  if (process.platform === "darwin") {
+    const homeDirectory = validatedHomeDirectory();
+    return path.join(
+      homeDirectory,
+      "Library",
+      "Application Support",
+      "Triage Companion",
+    );
+  }
+
+  if (process.platform === "win32") {
+    const configuredAppData = validatedEnvPathOverride(process.env.APPDATA, "APPDATA");
+    const base = configuredAppData ?? path.join(validatedHomeDirectory(), "AppData", "Roaming");
+    return path.join(base, "Triage Companion");
+  }
+
+  const configuredXDG = validatedEnvPathOverride(process.env.XDG_CONFIG_HOME, "XDG_CONFIG_HOME");
+  const xdg = configuredXDG ?? path.join(validatedHomeDirectory(), ".config");
+  return path.join(xdg, "triage-companion");
+}
+
+export function resolveConfigFilePath(fileName: string = "secrets.json"): string {
+  return path.join(resolveConfigDirectory(), fileName);
+}

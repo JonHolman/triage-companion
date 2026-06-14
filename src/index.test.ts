@@ -1,0 +1,96 @@
+import assert from "node:assert/strict";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, test } from "node:test";
+
+const ENTRY_POINT = fileURLToPath(new URL("./index.ts", import.meta.url));
+const PACKAGE_JSON_PATH = fileURLToPath(new URL("../package.json", import.meta.url));
+const REPO_ROOT = path.dirname(PACKAGE_JSON_PATH);
+
+function normalizeOutput(text: string | null | undefined): string {
+  const value = text ?? "";
+  return value
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
+}
+
+function runEntryPoint(args: string[]): SpawnSyncReturns<string> {
+  return spawnSync(process.execPath, [ENTRY_POINT, ...args], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  });
+}
+
+function toTclLiteral(value: string): string {
+  return `{` + value.replace(/}/g, "\\}") + `}`;
+}
+
+function runEntryPointWithTTY(args: string[]): SpawnSyncReturns<string> {
+  const spawnCommand = [process.execPath, ENTRY_POINT, ...args]
+    .map(toTclLiteral)
+    .join(" ");
+  const expectScript = [
+    "log_user 1",
+    `spawn ${spawnCommand}`,
+    "expect eof",
+    "set waitResult [wait]",
+    'puts "exit:[lindex $waitResult 3]"',
+  ].join("; ");
+
+  return spawnSync("expect", ["-c", expectScript], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  });
+}
+
+describe("cli entrypoint", () => {
+  test("keeps the package entrypoints wired to src/index.ts", () => {
+    const packageJSON = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
+      bin?: Record<string, string>;
+      scripts?: Record<string, string>;
+    };
+
+    assert.equal(packageJSON.bin?.["triage-companion"], "./src/index.ts");
+    assert.equal(packageJSON.scripts?.start, "node src/index.ts");
+  });
+
+  test("prints help from the real entrypoint", () => {
+    const result = runEntryPoint(["--help"]);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /Usage: triage-companion \[options\] \[command\]/);
+    assert.match(result.stdout, /menu\s+Open the interactive terminal menu/);
+  });
+
+  test("shows Commander help on bare invocation without a TTY", () => {
+    const result = runEntryPoint([]);
+    const output = normalizeOutput(`${result.stdout}${result.stderr}`);
+
+    assert.equal(result.status, 1);
+    assert.match(output, /Usage: triage-companion \[options\] \[command\]/);
+    assert.doesNotMatch(output, /Use arrow keys and Enter/);
+  });
+
+  test("shows the same bare-invocation help on a TTY", { skip: process.platform === "win32" }, () => {
+    const result = runEntryPointWithTTY([]);
+    const output = normalizeOutput(
+      `${result.stdout}${result.stderr}${result.error?.message ?? ""}`,
+    );
+
+    assert.equal(result.error, undefined);
+    assert.match(output, /Usage: triage-companion \[options\] \[command\]/);
+    assert.match(output, /exit:1/);
+    assert.doesNotMatch(output, /Use arrow keys and Enter/);
+  });
+
+  test("requires a TTY for the explicit menu command", () => {
+    const result = runEntryPoint(["menu"]);
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /triage-companion interactive menu requires a TTY/);
+  });
+});
