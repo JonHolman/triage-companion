@@ -15,7 +15,7 @@ npm install
 2. Open the interactive menu.
 
 ```sh
-npm start -- menu
+npm start
 ```
 
 3. Save credentials from the menu or with direct commands.
@@ -47,8 +47,9 @@ triage-companion jira tickets
 triage-companion git dirty
 ```
 
-Running `triage-companion` with no arguments displays the standard CLI help.
-Run `triage-companion menu` to open the interactive terminal menu.
+Running `triage-companion` with no arguments opens the interactive terminal menu.
+Run `triage-companion --help` to display the standard CLI help.
+Run `triage-companion menu` to open the same menu explicitly.
 Use the arrow keys to move, `Enter` to select, and `Esc` or `q` to go back.
 The menu exposes status, GitHub, Snyk, Jira, Git, and configuration actions.
 

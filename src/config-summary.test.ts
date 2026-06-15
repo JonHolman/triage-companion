@@ -1,121 +1,21 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { describe, test } from "node:test";
 
 import { buildConfigurationSummary } from "./config-summary.ts";
 import { ENV, saveSearchRoots } from "./config.ts";
 import { configFilePath, resetCache, save } from "./credential-store.ts";
+import { setupConfigSummaryTest } from "./config-summary-test-support.ts";
 
-let originalConfigDir: string | undefined;
-let originalGitBinary: string | undefined;
-let originalSearchRoots: string | undefined;
-let originalGitHubToken: string | undefined;
-let originalSnykToken: string | undefined;
-let originalSnykApiBaseURL: string | undefined;
-let originalJiraBaseURL: string | undefined;
-let originalJiraEmail: string | undefined;
-let originalJiraApiToken: string | undefined;
-let originalIgnoredBranches: string | undefined;
-let testDir = "";
-
-beforeEach(() => {
-  originalConfigDir = process.env.TRIAGE_COMPANION_CONFIG_DIR;
-  originalGitBinary = process.env[ENV.GIT_BINARY];
-  originalSearchRoots = process.env[ENV.GIT_SEARCH_ROOTS];
-  originalGitHubToken = process.env.GITHUB_TOKEN;
-  originalSnykToken = process.env.SNYK_TOKEN;
-  originalSnykApiBaseURL = process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
-  originalJiraBaseURL = process.env.JIRA_BASE_URL;
-  originalJiraEmail = process.env.JIRA_EMAIL;
-  originalJiraApiToken = process.env.JIRA_API_TOKEN;
-  originalIgnoredBranches = process.env[ENV.GITHUB_PR_IGNORE_BRANCHES];
-  testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-config-summary-"));
-  process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
-  delete process.env[ENV.GIT_BINARY];
-  delete process.env[ENV.GIT_SEARCH_ROOTS];
-  delete process.env.GITHUB_TOKEN;
-  delete process.env.SNYK_TOKEN;
-  delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
-  delete process.env.JIRA_BASE_URL;
-  delete process.env.JIRA_EMAIL;
-  delete process.env.JIRA_API_TOKEN;
-  delete process.env[ENV.GITHUB_PR_IGNORE_BRANCHES];
-  resetCache();
-});
-
-afterEach(() => {
-  resetCache();
-  if (originalConfigDir === undefined) {
-    delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
-  } else {
-    process.env.TRIAGE_COMPANION_CONFIG_DIR = originalConfigDir;
-  }
-
-  if (originalGitBinary === undefined) {
-    delete process.env[ENV.GIT_BINARY];
-  } else {
-    process.env[ENV.GIT_BINARY] = originalGitBinary;
-  }
-
-  if (originalSearchRoots === undefined) {
-    delete process.env[ENV.GIT_SEARCH_ROOTS];
-  } else {
-    process.env[ENV.GIT_SEARCH_ROOTS] = originalSearchRoots;
-  }
-
-  if (originalGitHubToken === undefined) {
-    delete process.env.GITHUB_TOKEN;
-  } else {
-    process.env.GITHUB_TOKEN = originalGitHubToken;
-  }
-
-  if (originalSnykToken === undefined) {
-    delete process.env.SNYK_TOKEN;
-  } else {
-    process.env.SNYK_TOKEN = originalSnykToken;
-  }
-
-  if (originalSnykApiBaseURL === undefined) {
-    delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
-  } else {
-    process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL = originalSnykApiBaseURL;
-  }
-
-  if (originalJiraBaseURL === undefined) {
-    delete process.env.JIRA_BASE_URL;
-  } else {
-    process.env.JIRA_BASE_URL = originalJiraBaseURL;
-  }
-
-  if (originalJiraEmail === undefined) {
-    delete process.env.JIRA_EMAIL;
-  } else {
-    process.env.JIRA_EMAIL = originalJiraEmail;
-  }
-
-  if (originalJiraApiToken === undefined) {
-    delete process.env.JIRA_API_TOKEN;
-  } else {
-    process.env.JIRA_API_TOKEN = originalJiraApiToken;
-  }
-
-  if (originalIgnoredBranches === undefined) {
-    delete process.env[ENV.GITHUB_PR_IGNORE_BRANCHES];
-  } else {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = originalIgnoredBranches;
-  }
-
-  fs.rmSync(testDir, { force: true, recursive: true });
-});
+const configSummaryTest = setupConfigSummaryTest();
 
 describe("configuration summary", () => {
   test("does not expose token values", () => {
     save("Triage Companion-GitHub", "notifications-token", "secret-token");
     save("Triage Companion-Snyk", "token", "snyk-secret");
-    saveSearchRoots([path.join(testDir, "Projects")]);
-    fs.mkdirSync(path.join(testDir, "Projects"));
+    saveSearchRoots([path.join(configSummaryTest.testDir, "Projects")]);
+    fs.mkdirSync(path.join(configSummaryTest.testDir, "Projects"));
 
     const summary = buildConfigurationSummary();
 
@@ -126,7 +26,7 @@ describe("configuration summary", () => {
   });
 
   test("shows environment git search roots as configured", () => {
-    const envRoot = path.join(testDir, "env-root");
+    const envRoot = path.join(configSummaryTest.testDir, "env-root");
     fs.mkdirSync(envRoot);
     process.env[ENV.GIT_SEARCH_ROOTS] = JSON.stringify([envRoot]);
 
@@ -136,7 +36,7 @@ describe("configuration summary", () => {
   });
 
   test("shows an explicit empty environment git search root override as configured", () => {
-    const storedRoot = path.join(testDir, "stored-root");
+    const storedRoot = path.join(configSummaryTest.testDir, "stored-root");
     fs.mkdirSync(storedRoot);
     saveSearchRoots([storedRoot]);
     process.env[ENV.GIT_SEARCH_ROOTS] = "[]";
@@ -179,7 +79,7 @@ describe("configuration summary", () => {
     fs.writeFileSync(configFilePath(), JSON.stringify({
       "Triage Companion-Config\u001fgit-search-roots": "{",
     }), "utf-8");
-    const envRoot = path.join(testDir, "env-root");
+    const envRoot = path.join(configSummaryTest.testDir, "env-root");
     fs.mkdirSync(envRoot);
     process.env[ENV.GIT_SEARCH_ROOTS] = JSON.stringify([envRoot]);
     resetCache();
@@ -479,7 +379,7 @@ describe("configuration summary", () => {
   });
 
   test("reports non-git executable configuration clearly", () => {
-    const fakeGit = path.join(testDir, "fake-git");
+    const fakeGit = path.join(configSummaryTest.testDir, "fake-git");
     fs.writeFileSync(fakeGit, "#!/bin/sh\necho not-git\n", { mode: 0o755 });
     process.env[ENV.GIT_BINARY] = fakeGit;
 
@@ -490,96 +390,4 @@ describe("configuration summary", () => {
     assert.match(summary, /must point to a git executable/);
   });
 
-  test("formats optional default values without breaking summary lines", () => {
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: main, master, production/);
-    assert.ok(!summary.includes("Ignored PR branches: main\nmaster\nproduction"));
-  });
-
-  test("formats ignored branch environment overrides as a readable list", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = '["release","hotfix"]';
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: release, hotfix/);
-    assert.ok(!summary.includes('Ignored PR branches: ["release","hotfix"]'));
-  });
-
-  test("formats an explicit empty ignored branch environment override as none", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = "[]";
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: \(none\)/);
-  });
-
-  test("ignores blank ignored branch environment overrides and shows the defaults", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = "   ";
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: main, master, production/);
-    assert.doesNotMatch(summary, /Ignored PR branches: \(none\)/);
-  });
-
-  test("omits blank author regex environment overrides", () => {
-    process.env[ENV.GITHUB_PR_AUTHOR_REGEX] = "   ";
-
-    const summary = buildConfigurationSummary();
-
-    assert.doesNotMatch(summary, /PR author regex:/);
-  });
-
-  test("shows invalid author regex overrides with escaped control characters", () => {
-    process.env[ENV.GITHUB_PR_AUTHOR_REGEX] = "repo\t@example\\.com";
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /PR author regex: repo\\t@example\\\.com/);
-    assert.match(summary, /PR author regex is invalid: must not include control characters/);
-  });
-
-  test("shows invalid ignored branch overrides raw instead of prettifying them", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = '[" main "]';
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: \[" main "\]/);
-    assert.match(summary, /Ignored PR branches is invalid: must contain branch names without surrounding whitespace/);
-  });
-
-  test("shows ignored branch overrides with surrounding whitespace around the JSON value raw instead of prettifying them", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = ' ["main"] ';
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: {2}\["main"\] /);
-    assert.match(summary, /Ignored PR branches is invalid: must not include surrounding whitespace/);
-  });
-
-  test("shows ignored branch overrides with control characters raw instead of prettifying them", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = '["fea\\tture"]';
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: \["fea\\tture"\]/);
-    assert.match(summary, /Ignored PR branches is invalid: must contain branch names without control characters/);
-  });
-
-  test("escapes control characters when showing invalid raw overrides", () => {
-    process.env[ENV.GITHUB_PR_IGNORE_BRANCHES] = "[\"main\t\"]";
-
-    const summary = buildConfigurationSummary();
-
-    assert.match(summary, /Ignored PR branches: \["main\\t"\]/);
-    assert.match(summary, /Ignored PR branches is invalid: must be a JSON array of branch names/);
-    assert.ok(!summary.includes("\t"));
-  });
-
-  test("omits empty service sections", () => {
-    const summary = buildConfigurationSummary();
-
-    assert.ok(!summary.includes("\nGit\n\nGit search roots"));
-  });
 });

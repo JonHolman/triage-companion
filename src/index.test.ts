@@ -33,7 +33,11 @@ function runEntryPointWithTTY(args: string[]): SpawnSyncReturns<string> {
     .join(" ");
   const expectScript = [
     "log_user 1",
+    "set timeout 5",
     `spawn ${spawnCommand}`,
+    "expect \"*Use arrow keys and Enter*\"",
+    "after 100",
+    "send \"q\"",
     "expect eof",
     "set waitResult [wait]",
     'puts "exit:[lindex $waitResult 3]"',
@@ -65,25 +69,25 @@ describe("cli entrypoint", () => {
     assert.match(result.stdout, /menu\s+Open the interactive terminal menu/);
   });
 
-  test("shows Commander help on bare invocation without a TTY", () => {
+  test("requires a TTY for bare menu invocation", () => {
     const result = runEntryPoint([]);
     const output = normalizeOutput(`${result.stdout}${result.stderr}`);
 
     assert.equal(result.status, 1);
-    assert.match(output, /Usage: triage-companion \[options\] \[command\]/);
+    assert.match(output, /triage-companion interactive menu requires a TTY/);
     assert.doesNotMatch(output, /Use arrow keys and Enter/);
   });
 
-  test("shows the same bare-invocation help on a TTY", { skip: process.platform === "win32" }, () => {
+  test("opens the menu on bare TTY invocation", { skip: process.platform === "win32" }, () => {
     const result = runEntryPointWithTTY([]);
     const output = normalizeOutput(
       `${result.stdout}${result.stderr}${result.error?.message ?? ""}`,
     );
 
     assert.equal(result.error, undefined);
-    assert.match(output, /Usage: triage-companion \[options\] \[command\]/);
-    assert.match(output, /exit:1/);
-    assert.doesNotMatch(output, /Use arrow keys and Enter/);
+    assert.match(output, /triage-companion/);
+    assert.match(output, /Use arrow keys and Enter/);
+    assert.match(output, /exit:0/);
   });
 
   test("requires a TTY for the explicit menu command", () => {

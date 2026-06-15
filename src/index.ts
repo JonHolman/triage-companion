@@ -28,19 +28,19 @@ program
 async function runMenuCommand(): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     process.stderr.write("triage-companion interactive menu requires a TTY.\n");
-    process.exitCode = 1;
-    return;
+    process.exit(1);
   }
 
   try {
     await runInteractiveMenu();
+    process.exit(0);
   } catch (error) {
     if (error instanceof MenuInterruptedError) {
-      process.exitCode = 130;
+      process.exit(130);
     } else {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`triage-companion menu error: ${inlineErrorText(message)}\n`);
-      process.exitCode = 1;
+      process.exit(1);
     }
   }
 }
@@ -50,4 +50,9 @@ program
   .command("menu")
   .description("Open the interactive terminal menu")
   .action(runMenuCommand);
-await program.parseAsync(process.argv);
+
+if (process.argv.slice(2).length === 0) {
+  await runMenuCommand();
+} else {
+  await program.parseAsync(process.argv);
+}

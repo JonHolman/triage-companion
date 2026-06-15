@@ -16,7 +16,8 @@
   "scripts": {
     "start": "node src/index.ts",
     "test": "node --test --test-concurrency=1 src/*.test.ts src/**/*.test.ts",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint --flag unstable_native_nodejs_ts_config -c eslint.config.ts \"src/**/*.ts\"",
+    "check:file-lines": "node src/check-file-lines.ts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
