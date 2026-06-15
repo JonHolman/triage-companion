@@ -8,6 +8,43 @@ import { Command } from "commander";
 import { register } from "./git.ts";
 import { findCommand, optionLongNames, runRegisteredCommand } from "./test-support.test.ts";
 
+async function runRegisteredCommandCapturingStderr(
+  registerCommand: (program: Command) => void,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; exitCode: number | undefined }> {
+  const program = new Command();
+  program.exitOverride();
+  registerCommand(program);
+
+  const originalStdoutWrite = process.stdout.write;
+  const originalStderrWrite = process.stderr.write;
+  const originalExitCode = process.exitCode;
+  const stdoutChunks: string[] = [];
+  const stderrChunks: string[] = [];
+  process.exitCode = undefined;
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    stdoutChunks.push(String(chunk));
+    return true;
+  }) as typeof process.stdout.write;
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    stderrChunks.push(String(chunk));
+    return true;
+  }) as typeof process.stderr.write;
+
+  try {
+    await program.parseAsync(["node", "test", ...args]);
+    return {
+      stdout: stdoutChunks.join(""),
+      stderr: stderrChunks.join(""),
+      exitCode: process.exitCode,
+    };
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+    process.exitCode = originalExitCode;
+  }
+}
+
 function writeFakeGitScript(scriptPath: string, body: string): void {
   fs.writeFileSync(
     scriptPath,
@@ -170,6 +207,41 @@ fi
 
     assert.match(output, /target-repo/);
     assert.doesNotMatch(output, /alpha-repo/);
+  });
+
+  test("git dirty rejects whitespace-only search before discovery", async () => {
+    process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = JSON.stringify([tempDir]);
+    const repo = path.join(tempDir, "repo");
+    writeHeadFile(path.join(repo, ".git"));
+
+    const result = await runRegisteredCommandCapturingStderr(register, [
+      "git",
+      "dirty",
+      "--search",
+      "   ",
+      "--json",
+    ]);
+
+    assert.equal(result.stdout, "");
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /--search must not be empty/);
+  });
+
+  test("git status rejects whitespace-only search before discovery", async () => {
+    process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = JSON.stringify([tempDir]);
+    const repo = path.join(tempDir, "repo");
+    writeHeadFile(path.join(repo, ".git"));
+
+    const result = await runRegisteredCommandCapturingStderr(register, [
+      "git",
+      "status",
+      "--search",
+      "   ",
+    ]);
+
+    assert.equal(result.stdout, "");
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /--search must not be empty/);
   });
 
   test("applies git status search before the default repository cap", async () => {

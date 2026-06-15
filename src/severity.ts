@@ -28,7 +28,7 @@ export function summarizeSeverities(values: readonly string[]): string {
   for (const value of values) {
     const key = normalizedKnownSeverity(value);
     if (key) {
-      counts[key] += 1;
+      counts[key] = (counts[key] ?? 0) + 1;
     }
   }
 

@@ -972,7 +972,8 @@ function remoteRefs(output: string): GitHubRef[] {
         throw new Error("Git remote ref output lines must contain an object ID and ref separated by a tab.");
       }
 
-      const [sha, ref] = parts;
+      const sha = parts[0] ?? "";
+      const ref = parts[1] ?? "";
       if (!isGitObjectIDText(sha)) {
         throw new Error("Git remote ref output must include full object IDs.");
       }

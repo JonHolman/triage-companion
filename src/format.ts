@@ -37,7 +37,7 @@ function measureTable(
   for (const row of allRows) {
     for (let i = 0; i < row.length; i++) {
       const width = stripAnsi(String(row[i] ?? "")).length;
-      if (width > widths[i]) {
+      if (width > (widths[i] ?? 0)) {
         widths[i] = width;
       }
     }
@@ -96,11 +96,10 @@ export function table(rows: ReadonlyArray<ReadonlyArray<TableCell>>, { headers =
   const lines: string[] = [];
   const allRows = headers.length > 0 ? [headers, ...rows] : rows;
 
-  for (let r = 0; r < allRows.length; r++) {
-    const row = allRows[r];
+  for (const [r, row] of allRows.entries()) {
     const cells = widths.map((width, index) => {
       const value = String(row[index] ?? "");
-      const padding = widths[index] - stripAnsi(value).length;
+      const padding = width - stripAnsi(value).length;
       return value + " ".repeat(Math.max(padding, 0));
     });
 

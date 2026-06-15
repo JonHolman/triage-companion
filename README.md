@@ -314,6 +314,7 @@ triage-companion git status [--search <query>]
 `snyk issues --severity` accepts only `critical`, `high`, `medium`, or `low`; explicit empty or whitespace-padded values are rejected.
 All `--limit` options accept only positive integers with no surrounding whitespace.
 Git `dirty --search` and `status --search` match repository name, branch, or path, and only run full status output for repositories that match.
+Blank search queries are invalid.
 
 ## Troubleshooting: configured but a command still asks questions
 

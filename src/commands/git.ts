@@ -4,6 +4,19 @@ import * as git from "../clients/git.ts";
 import { bold, dim, responsiveTable } from "../format.ts";
 import { parseLimit, runCommand } from "./command-utils.ts";
 
+function parseSearchOption(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized.length === 0) {
+    throw new Error("--search must not be empty.");
+  }
+
+  return normalized;
+}
+
 export function register(program: Command): void {
   const cmd = program.command("git").description("Git repository status");
 
@@ -16,7 +29,7 @@ export function register(program: Command): void {
     .action((opts: { limit: string; search?: string; json: boolean }) => {
       return runCommand("git dirty", () => {
         const requestedLimit = parseLimit(opts.limit, "--limit", 300);
-        const query = opts.search?.trim().toLowerCase();
+        const query = parseSearchOption(opts.search);
         const repos = git.listDirtyRepositories({
           maxResults: query ? Number.MAX_SAFE_INTEGER : requestedLimit,
           searchQuery: query,
@@ -73,7 +86,7 @@ export function register(program: Command): void {
     .option("--search <query>", "Filter results by name/branch/path")
     .action((opts: { search?: string }) => {
       return runCommand("git status", () => {
-        const query = opts.search?.trim().toLowerCase();
+        const query = parseSearchOption(opts.search);
         const repos = git.listDirtyRepositories({
           maxResults: query ? Number.MAX_SAFE_INTEGER : undefined,
           searchQuery: query,
