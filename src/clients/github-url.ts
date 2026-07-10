@@ -1,5 +1,7 @@
 import { GITHUB_API_HOST } from "./github-constants.ts";
 
+export { parseDate as parseGitHubDate } from "../text.ts";
+
 export function validatedGitHubAPIURL(value: string): URL {
   if (value.trim() !== value) {
     throw new Error("GitHub API URL must not include surrounding whitespace.");
@@ -193,50 +195,6 @@ export function repositoryFullNameFromURL(repositoryURL: string): string | null 
   }
 }
 
-export function parseGitHubDate(value: string | undefined): Date | null {
-  if (!value) {
-    return null;
-  }
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:?\d{2})$/.exec(value);
-  if (!match) {
-    return null;
-  }
-
-  const year = Number.parseInt(match[1] ?? "", 10);
-  const month = Number.parseInt(match[2] ?? "", 10);
-  const day = Number.parseInt(match[3] ?? "", 10);
-  const hour = Number.parseInt(match[4] ?? "", 10);
-  const minute = Number.parseInt(match[5] ?? "", 10);
-  const second = Number.parseInt(match[6] ?? "", 10);
-  const offset = match[7] ?? "";
-  const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  if (
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > maxDay ||
-    hour > 23 ||
-    minute > 59 ||
-    second > 59
-  ) {
-    return null;
-  }
-
-  if (offset !== "Z") {
-    const offsetMatch = /^[+-](\d{2}):?(\d{2})$/.exec(offset);
-    const offsetHour = Number.parseInt(offsetMatch?.[1] ?? "", 10);
-    const offsetMinute = Number.parseInt(offsetMatch?.[2] ?? "", 10);
-    if (offsetHour > 23 || offsetMinute > 59) {
-      return null;
-    }
-  }
-
-  const normalizedValue = value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
-  const parsed = new Date(normalizedValue);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 export function requireGitHubWebURL(value: string | null, context: string): string {
   if (!value) {
     throw new Error(`${context} missing GitHub web URL.`);
@@ -291,14 +249,6 @@ export function requireGitHubRepositoryWebURL(
   }
 
   return href;
-}
-
-export function requireGitHubRepositoryLinkURL(
-  value: string | null,
-  context: string,
-  repositoryFullName: string,
-): string {
-  return requireGitHubRepositoryWebURL(value, context, repositoryFullName);
 }
 
 export function requireGitHubRepositoryRootURL(
@@ -371,4 +321,22 @@ export function requireWorkflowRunWebURL(
   }
 
   return href;
+}
+
+export function uniqueRepositoryFullNames(repositoryFullNames: readonly string[]): string[] {
+  const uniqueNames: string[] = [];
+  const seen = new Set<string>();
+
+  for (const repositoryName of repositoryFullNames) {
+    const validated = validateRepositoryFullName(repositoryName);
+    const key = validated.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    uniqueNames.push(validated);
+  }
+
+  return uniqueNames;
 }

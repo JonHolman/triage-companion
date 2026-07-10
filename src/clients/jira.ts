@@ -1,15 +1,24 @@
 import * as creds from "../credential-store.ts";
-import { ENV } from "../config.ts";
-import { getServiceDefinition, getServiceSetting, hasUnsafeURLPathSegments } from "../config-model.ts";
+import { inlineErrorText, isRecord, parseDate, validateConfiguredText } from "../text.ts";
+import {
+  getServiceDefinition,
+  getServiceSetting,
+  hasUnsafeURLPathSegments,
+  requiredSettingEnvVar,
+  requiredSettingStorage,
+} from "../config-model.ts";
 
-const SERVICE = "Triage Companion-Jira";
 const baseURLField = getServiceSetting("jira", "baseURL");
 const emailField = getServiceSetting("jira", "email");
 const apiTokenField = getServiceSetting("jira", "apiToken");
 
-const ACCOUNT_BASE_URL = baseURLField.storage?.account ?? "base-url";
-const ACCOUNT_EMAIL = emailField.storage?.account ?? "email";
-const ACCOUNT_TOKEN = apiTokenField.storage?.account ?? "api-token";
+const baseURLStorage = requiredSettingStorage(baseURLField);
+const emailStorage = requiredSettingStorage(emailField);
+const apiTokenStorage = requiredSettingStorage(apiTokenField);
+const SERVICE = baseURLStorage.service;
+const ACCOUNT_BASE_URL = baseURLStorage.account;
+const ACCOUNT_EMAIL = emailStorage.account;
+const ACCOUNT_TOKEN = apiTokenStorage.account;
 const MAX_PAGE_SIZE = 100;
 const ISSUE_FIELDS = "summary,status,priority,issuetype,reporter,updated,resolution";
 const JQL =
@@ -29,9 +38,9 @@ interface JiraTicket {
   key: string;
   issueType: string;
   status: string;
-  priority: string;
+  priority: string | null;
   reporter: string | null;
-  updatedAt: Date | null;
+  updatedAt: Date;
   updatedText: string;
   summary: string;
   url: string;
@@ -45,28 +54,14 @@ function readSettingWithEnvironmentOverride(account: string, envVar: string): st
   return creds.read(SERVICE, account);
 }
 
-function validateConfiguredText(value: string, label: string): string {
-  if (value.trim().length === 0) {
-    throw new Error(`${label} is required.`);
-  }
-  if (value.trim() !== value) {
-    throw new Error(`${label} must not include surrounding whitespace.`);
-  }
-  if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
-    throw new Error(`${label} must not include control characters.`);
-  }
-
-  return value;
-}
-
 function resolveSettings(): JiraSettings | null {
   const base = normalizeBaseURL(
-    readSettingWithEnvironmentOverride(ACCOUNT_BASE_URL, baseURLField.envVar ?? ENV.JIRA_BASE_URL),
+    readSettingWithEnvironmentOverride(ACCOUNT_BASE_URL, requiredSettingEnvVar(baseURLField)),
   );
-  const rawEmail = readSettingWithEnvironmentOverride(ACCOUNT_EMAIL, emailField.envVar ?? ENV.JIRA_EMAIL);
+  const rawEmail = readSettingWithEnvironmentOverride(ACCOUNT_EMAIL, requiredSettingEnvVar(emailField));
   const rawApiToken = readSettingWithEnvironmentOverride(
     ACCOUNT_TOKEN,
-    apiTokenField.envVar ?? ENV.JIRA_API_TOKEN,
+    requiredSettingEnvVar(apiTokenField),
   );
 
   if (!base || rawEmail === null || rawApiToken === null) {
@@ -119,54 +114,6 @@ function authHeader(email: string, token: string): string {
   return `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`;
 }
 
-function parseDate(value: string | undefined): Date | null {
-  if (!value) {
-    return null;
-  }
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:?\d{2})$/.exec(value);
-  if (!match) {
-    return null;
-  }
-
-  const year = Number.parseInt(match[1] ?? "", 10);
-  const month = Number.parseInt(match[2] ?? "", 10);
-  const day = Number.parseInt(match[3] ?? "", 10);
-  const hour = Number.parseInt(match[4] ?? "", 10);
-  const minute = Number.parseInt(match[5] ?? "", 10);
-  const second = Number.parseInt(match[6] ?? "", 10);
-  const offset = match[7] ?? "";
-  const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  if (
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > maxDay ||
-    hour > 23 ||
-    minute > 59 ||
-    second > 59
-  ) {
-    return null;
-  }
-
-  if (offset !== "Z") {
-    const offsetMatch = /^[+-](\d{2}):?(\d{2})$/.exec(offset);
-    const offsetHour = Number.parseInt(offsetMatch?.[1] ?? "", 10);
-    const offsetMinute = Number.parseInt(offsetMatch?.[2] ?? "", 10);
-    if (offsetHour > 23 || offsetMinute > 59) {
-      return null;
-    }
-  }
-
-  const normalizedValue = value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
-  const parsed = new Date(normalizedValue);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function recordField(record: Record<string, unknown>, key: string): Record<string, unknown> | null {
   const value = record[key];
   return isRecord(value) ? value : null;
@@ -205,9 +152,9 @@ function isIssueFieldsResponse(value: Record<string, unknown>): boolean {
     isTextValue(value.updated) &&
     isNamedFieldRecord(value.issuetype) &&
     isNamedFieldRecord(value.status) &&
-    isNamedFieldRecord(value.priority) &&
+    (value.priority === null || isNamedFieldRecord(value.priority)) &&
     (value.resolution === undefined || value.resolution === null || isNamedFieldRecord(value.resolution)) &&
-    (value.reporter === undefined || isReporterFieldRecord(value.reporter))
+    (value.reporter === undefined || value.reporter === null || isReporterFieldRecord(value.reporter))
   );
 }
 
@@ -257,14 +204,15 @@ function normalizeBaseURL(baseURL: string | null): string | null {
 }
 
 export function baseURLEnvOverrideState(
-  raw: string | undefined | null = process.env[baseURLField.envVar ?? ENV.JIRA_BASE_URL],
+  raw: string | undefined | null = process.env[requiredSettingEnvVar(baseURLField)],
 ): "missing" | "valid" | "invalid" {
   if (raw === undefined || raw === null) {
     return "missing";
   }
 
   try {
-    return normalizeBaseURL(raw) ? "valid" : "invalid";
+    normalizeBaseURL(raw);
+    return "valid";
   } catch {
     return "invalid";
   }
@@ -278,43 +226,20 @@ function validateIssueKey(value: string): string {
   return value.toUpperCase();
 }
 
-function validateSearchPagination(body: Record<string, unknown>): {
-  startAt: number;
-  maxResults: number;
-  total: number;
-} {
-  const { startAt, maxResults, total } = body;
-  if (
-    typeof startAt !== "number" ||
-    typeof maxResults !== "number" ||
-    typeof total !== "number" ||
-    !Number.isSafeInteger(startAt) ||
-    !Number.isSafeInteger(maxResults) ||
-    !Number.isSafeInteger(total) ||
-    startAt < 0 ||
-    maxResults <= 0 ||
-    total < 0
-  ) {
-    throw new Error("Jira search response must include valid pagination numbers.");
+function validateNextPageToken(body: Record<string, unknown>): string | null {
+  const token = body.nextPageToken;
+  if (token === undefined) {
+    if (body.isLast === false) {
+      throw new Error("Jira search response reported more pages without a nextPageToken.");
+    }
+
+    return null;
+  }
+  if (typeof token !== "string" || !isTextValue(token)) {
+    throw new Error("Jira search response nextPageToken must be non-empty text without surrounding whitespace or control characters.");
   }
 
-  return {
-    startAt,
-    maxResults,
-    total,
-  };
-}
-
-function inlineErrorText(text: string): string {
-  const normalizedLineBreaks = text.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
+  return token;
 }
 
 async function jiraErrorMessage(response: Response): Promise<string> {
@@ -376,17 +301,20 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
   }
 
   const issues: JiraTicket[] = [];
-  let startAt = 0;
+  let nextPageToken: string | null = null;
+  const seenPageTokens = new Set<string>();
 
   while (true) {
     const params = new URLSearchParams({
       jql: JQL,
       fields: ISSUE_FIELDS,
-      startAt: String(startAt),
       maxResults: String(MAX_PAGE_SIZE),
     });
+    if (nextPageToken !== null) {
+      params.set("nextPageToken", nextPageToken);
+    }
 
-    const url = `${settings.baseURL}/rest/api/3/search?${params}`;
+    const url = `${settings.baseURL}/rest/api/3/search/jql?${params}`;
     let response: Response;
     try {
       response = await fetch(url, {
@@ -415,20 +343,14 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
     if (!isRecord(body) || !Array.isArray(rawIssues)) {
       throw new Error("Jira search response must include an issues array.");
     }
-    const pagination = validateSearchPagination(body);
-    if (pagination.startAt !== startAt) {
-      throw new Error("Jira search response pagination startAt did not match the requested page.");
-    }
+    const responseNextPageToken = validateNextPageToken(body);
 
     const issueRecords = rawIssues.filter(isRecord);
     if (issueRecords.length !== rawIssues.length) {
       throw new Error("Jira search response issues must be objects.");
     }
-    if (rawIssues.length > pagination.maxResults) {
-      throw new Error("Jira search response issue count exceeded the returned page size.");
-    }
-    if (pagination.startAt + rawIssues.length > pagination.total) {
-      throw new Error("Jira search response issue count exceeded the reported total.");
+    if (rawIssues.length > MAX_PAGE_SIZE) {
+      throw new Error("Jira search response issue count exceeded the requested page size.");
     }
 
     for (const issue of issueRecords) {
@@ -461,7 +383,7 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
         key,
         issueType: stringField(recordField(fields, "issuetype"), "name") as string,
         status: stringField(recordField(fields, "status"), "name") as string,
-        priority: stringField(recordField(fields, "priority"), "name") as string,
+        priority: stringField(recordField(fields, "priority"), "name") ?? null,
         reporter: stringField(reporter, "displayName") ?? stringField(reporter, "emailAddress") ?? null,
         updatedAt: updated,
         updatedText: updated.toLocaleString(),
@@ -470,24 +392,19 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
       });
     }
 
+    if (responseNextPageToken === null) {
+      break;
+    }
     if (rawIssues.length === 0) {
-      if (pagination.startAt < pagination.total) {
-        throw new Error("Jira search response returned an empty page before reaching the reported total.");
-      }
-      break;
+      throw new Error("Jira search response returned an empty page before pagination finished.");
+    }
+    if (seenPageTokens.has(responseNextPageToken)) {
+      throw new Error("Jira search pagination repeated a previously fetched page.");
     }
 
-    const next = pagination.startAt + rawIssues.length;
-    if (next >= pagination.total) {
-      break;
-    }
-
-    startAt = next;
+    seenPageTokens.add(responseNextPageToken);
+    nextPageToken = responseNextPageToken;
   }
 
-  return issues.sort((left, right) => {
-    const leftTime = left.updatedAt?.getTime() ?? 0;
-    const rightTime = right.updatedAt?.getTime() ?? 0;
-    return rightTime - leftTime;
-  });
+  return issues.sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime());
 }

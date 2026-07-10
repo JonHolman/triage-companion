@@ -1,6 +1,9 @@
 import {
   isPositiveSafeIntegerValue,
 } from "./github-url.ts";
+import { inlineErrorText, isRecord } from "../text.ts";
+
+export { inlineErrorText, isRecord };
 import type {
   GitHubNotificationApi,
   NotificationRepository,
@@ -8,10 +11,6 @@ import type {
   PullRequestSummaryResponse,
   WorkflowRunResponse,
 } from "./github-types.ts";
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 export function hasCanonicalTextValue(value: unknown): value is string {
   return (
@@ -30,7 +29,7 @@ export function isNotificationSubject(value: unknown): value is NotificationSubj
   return (
     (value.type === undefined || hasCanonicalTextValue(value.type)) &&
     (value.title === undefined || hasCanonicalTextValue(value.title)) &&
-    (value.url === undefined || hasCanonicalTextValue(value.url))
+    (value.url === undefined || value.url === null || hasCanonicalTextValue(value.url))
   );
 }
 
@@ -193,18 +192,6 @@ export async function parseGitHubJSON(response: Response, responseName: string):
   } catch {
     throw new Error(`${responseName} must be valid JSON.`);
   }
-}
-
-export function inlineErrorText(text: string): string {
-  const normalizedLineBreaks = text.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
 }
 
 export async function githubErrorMessage(response: Response): Promise<string> {

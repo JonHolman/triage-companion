@@ -47,25 +47,11 @@ export interface GitCommandOptions {
 }
 
 export function resolveGitBinary(): string | null {
-  const configured = process.env[ENV.GIT_BINARY];
-  if (configured !== undefined) {
-    if (trimEnvValue(configured) === null) {
-      return isGitBinary("git") ? "git" : null;
-    }
-    if (configured.trim() !== configured) {
-      return null;
-    }
-
-    let expanded: string;
-    try {
-      expanded = expandHomePath(configured);
-    } catch {
-      return null;
-    }
-    return configuredGitBinaryValidationError(expanded) === null ? expanded : null;
+  try {
+    return requireGitBinary();
+  } catch {
+    return null;
   }
-
-  return isGitBinary("git") ? "git" : null;
 }
 
 export function requireGitBinary(): string {

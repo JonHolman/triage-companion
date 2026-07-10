@@ -48,3 +48,66 @@ export function setupGitHubCredentialsTest(): GitHubCredentialsTestContext {
     },
   };
 }
+
+export function jsonResponse(
+  body: unknown,
+  options: { status?: number; headers?: Record<string, string> } = {},
+): Response {
+  return new Response(JSON.stringify(body), {
+    status: options.status ?? 200,
+    headers: { "Content-Type": "application/json", ...options.headers },
+  });
+}
+
+export function notificationsUrl(perPage: number): string {
+  return `https://api.github.com/notifications?all=false&participating=false&per_page=${perPage}`;
+}
+
+export function notificationJson(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "1",
+    repository: {
+      full_name: "octocat/hello-world",
+      html_url: "https://github.com/octocat/hello-world",
+    },
+    subject: {
+      type: "Issue",
+      title: "Issue update",
+      url: "https://api.github.com/repos/octocat/hello-world/issues/1",
+    },
+    unread: true,
+    ...overrides,
+  };
+}
+
+export function workflowRunsUrl(perPage: number): string {
+  return `https://api.github.com/repos/octocat/hello-world/actions/runs?status=failure&per_page=${perPage}`;
+}
+
+export function workflowRunJson(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 123,
+    name: "CI",
+    display_title: "fix bug",
+    status: "completed",
+    conclusion: "failure",
+    html_url: "https://github.com/octocat/hello-world/actions/runs/123",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+export const DEPENDABOT_ALERTS_URL =
+  "https://api.github.com/repos/octocat/hello-world/dependabot/alerts?state=open&per_page=100";
+
+export function dependabotAlertJson(
+  alertNumber: number,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    number: alertNumber,
+    state: "open",
+    html_url: `https://github.com/octocat/hello-world/security/dependabot/${alertNumber}`,
+    ...overrides,
+  };
+}

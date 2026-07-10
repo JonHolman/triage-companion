@@ -1,7 +1,6 @@
 import { Command } from "commander";
 
 import * as github from "../clients/github.ts";
-import { parseSearchRootsInput } from "../config.ts";
 import {
   bold,
   dim,
@@ -11,23 +10,9 @@ import {
 } from "../format.ts";
 import { ENV, getServiceDefinition } from "../config-model.ts";
 import { summarizeSeverities } from "../severity.ts";
-import { parseLimit, runCommand, textEnvOverrideState } from "./command-utils.ts";
+import { parseLimit, parseSearchRootsJSON, printSetupGuidance, printTokenPermissions, runCommand, textEnvOverrideState } from "./command-utils.ts";
 
 const githubService = getServiceDefinition("github");
-
-function printTokenPermissions(): void {
-  console.log(dim("Required token permissions:"));
-  for (const requirement of githubService.status.permissionRequirements) {
-    console.log(dim(`  ${requirement.feature}: ${requirement.permissions.join(", ")}`));
-  }
-}
-
-function printSetupGuidance(): void {
-  console.log(dim("Setup guidance:"));
-  for (const note of githubService.status.setupGuidance) {
-    console.log(dim(`  ${note}`));
-  }
-}
 
 function rawNonBlankEnvValue(value: string | undefined | null): string | null {
   if (value === undefined || value === null) {
@@ -35,17 +20,6 @@ function rawNonBlankEnvValue(value: string | undefined | null): string | null {
   }
 
   return value.trim().length === 0 ? null : value;
-}
-
-function parseSearchRootsOption(value: string): string[] {
-  if (value.trim().length === 0) {
-    throw new Error("--search-roots must be a JSON array of non-empty strings.");
-  }
-  if (value.trim() !== value) {
-    throw new Error("--search-roots must not include surrounding whitespace.");
-  }
-
-  return parseSearchRootsInput(value);
 }
 
 export function register(program: Command): void {
@@ -61,8 +35,8 @@ export function register(program: Command): void {
       return runCommand("github token", () => {
         github.saveToken(token);
         console.log("✓ GitHub token saved.");
-        printSetupGuidance();
-        printTokenPermissions();
+        printSetupGuidance(githubService);
+        printTokenPermissions(githubService);
       });
     });
 
@@ -91,7 +65,7 @@ export function register(program: Command): void {
     .action((opts: { all: boolean; limit: string; json: boolean }) => {
       return runCommand("github notifications", async () => {
         const notifications = await github.listNotifications({
-          maxResults: parseLimit(opts.limit, "--limit", 50),
+          maxResults: parseLimit(opts.limit, "--limit"),
           includeRead: opts.all,
         });
 
@@ -178,7 +152,7 @@ export function register(program: Command): void {
         return runCommand("github my-open-prs", async () => {
           const searchRoots = opts.searchRoots === undefined
             ? undefined
-            : parseSearchRootsOption(opts.searchRoots);
+            : parseSearchRootsJSON(opts.searchRoots, "--search-roots");
           const pullRequests = await github.listMyOpenPullRequests({
             repositoryPaths: paths && paths.length > 0 ? paths : undefined,
             searchRoots,
@@ -281,7 +255,7 @@ export function register(program: Command): void {
     .option("--json", "Output as JSON", false)
     .action((repos: string[] | undefined, opts: { limit: string; json: boolean }) => {
       return runCommand("github failed-workflows", async () => {
-        const maxPerRepo = parseLimit(opts.limit, "--limit", 5);
+        const maxPerRepo = parseLimit(opts.limit, "--limit");
         let targetRepos = repos ?? [];
         if (targetRepos.length === 0) {
           const currentRepo = github.resolveCurrentRepositoryFullName();

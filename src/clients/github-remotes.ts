@@ -77,7 +77,11 @@ export function invalidGitHubRemoteConfigurationMessage(remoteURL: string): stri
     return "Git remote origin URL must not include surrounding whitespace.";
   }
   const lowerValue = value.toLowerCase();
-  if (lowerValue.startsWith("git@github.com:")) {
+  if (
+    lowerValue.startsWith("git@github.com:") ||
+    lowerValue.startsWith("ssh://git@github.com/") ||
+    lowerValue.startsWith("ssh://git@github.com:")
+  ) {
     return remoteRepositoryURL(value)
       ? null
       : "Git remote origin is not a valid GitHub repository URL.";

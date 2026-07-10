@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as store from "./credential-store.ts";
-import { trimEnvValue, validatedHomeDirectory } from "./config-path.ts";
+import { inlineErrorText } from "./text.ts";
+import { trimEnvValue } from "./config-path.ts";
+import { expandHomePath, validatedHomeDirectory } from "./home-path.ts";
 import {
   DEFAULT_SEARCH_ROOTS,
   ENV as MODEL_ENV,
@@ -26,37 +28,12 @@ function isExistingDirectory(candidate: string): boolean {
   }
 }
 
-function expandHomePath(candidate: string, homeDirectory?: string): string {
-  if (candidate === "~") {
-    return homeDirectory ?? validatedHomeDirectory();
-  }
-
-  if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
-    const resolvedHomeDirectory = homeDirectory ?? validatedHomeDirectory();
-    return path.join(resolvedHomeDirectory, candidate.slice(2));
-  }
-
-  return candidate;
-}
-
 function normalizeStoredSearchRoot(candidate: string, currentDirectory: string = process.cwd()): string {
   if (candidate === "~" || candidate.startsWith("~/") || candidate.startsWith("~\\")) {
     return candidate;
   }
 
   return path.isAbsolute(candidate) ? candidate : path.resolve(currentDirectory, candidate);
-}
-
-function inlineErrorText(text: string): string {
-  const normalizedLineBreaks = text.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
 }
 
 function parseStoredSearchRoots(raw: string | null): string[] {

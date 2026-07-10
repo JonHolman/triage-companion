@@ -103,7 +103,7 @@ Tokens that you enter through the CLI are persisted in `secrets.json`.
 
 The CLI only sends requests to the services you configure.
 For Snyk, the client only accepts US-hosted REST API base URLs: `https://api.snyk.io/rest` and `https://api.us.snyk.io/rest`.
-Snyk issue links returned by the API must also point to US Snyk app hosts: `https://app.snyk.io` or `https://app.us.snyk.io`.
+Snyk issue links are constructed locally from the organization slug, project ID, and issue key, and always point to the US Snyk app host that matches the configured API base URL: `https://app.snyk.io` or `https://app.us.snyk.io`.
 Snyk Gov is US-hosted, but this token-based client does not support it because Snyk Gov requires OAuth instead of static API tokens.
 Endpoint allowlists only control where this CLI sends requests.
 They do not prove that a provider stores every operational, authentication, analytics, billing, support, or subprocessed data element only in the United States.
@@ -158,8 +158,8 @@ For USA-only Snyk data residency, leave the default US-01 REST API base URL or s
 You can persist a regional value with `triage-companion snyk api-base-url <url>` or set it from the interactive menu.
 If `TRIAGE_COMPANION_SNYK_API_BASE_URL` is set, that environment override still takes precedence over the saved value.
 Use only the bare Snyk REST API base URL; do not include usernames, tokens, other credentials, control characters, or path dot segments like `/./` or `/../` in the URL.
-Non-US Snyk REST API URLs are rejected before the client makes an API request, and non-US Snyk issue links are rejected before output.
-Malformed Snyk issue rows that provide neither a project relationship nor a project name, or that reference a project missing from the project list, are rejected instead of being grouped under an unknown project.
+Non-US Snyk REST API URLs are rejected before the client makes an API request, and issue links are constructed locally against the matching US Snyk app host instead of trusting link values from the API.
+Malformed Snyk issue rows that are missing the project relationship, the issue key, timestamps, or that reference a project missing from the project list, are rejected instead of being grouped under an unknown project.
 
 Minimum permissions:
 
@@ -278,6 +278,7 @@ GitHub pagination links with surrounding whitespace are rejected instead of bein
 GitHub `failed-workflows` and `security-alerts` also fail if GitHub returns items outside the requested `failure` or `open` filter, instead of silently dropping or misreporting them.
 `jira tickets` also fails if the unresolved-ticket query returns a resolved issue row, instead of silently mixing it into the open-ticket result set.
 GitHub `notifications` likewise fails if an unread-only fetch returns read notifications, instead of silently mixing them into the default unread view.
+CheckSuite and Discussion notifications have no per-item GitHub web page, so their links point to the repository Actions and Discussions pages.
 Raw GitHub, Jira, and Snyk API error text, and direct GitHub, Jira, and Snyk fetch/network failure text, are flattened and control characters are escaped before they are shown in terminal output.
 Local Git repository paths with control characters are rejected instead of being rendered into `git` and `github my-open-prs` output.
 Malformed local Git branch headers and changed paths with control characters are rejected instead of being rendered into `git` output.
@@ -314,6 +315,7 @@ triage-companion git status [--search <query>]
 
 `snyk issues --severity` accepts only `critical`, `high`, `medium`, or `low`; explicit empty or whitespace-padded values are rejected.
 All `--limit` options accept only positive integers with no surrounding whitespace.
+`git dirty` prints a notice when more matching repositories exist than `--limit` shows, and `git status` lists every dirty repository without a cap.
 Git `dirty --search` and `status --search` match repository name, branch, or path, and only run full status output for repositories that match.
 Blank search queries are invalid.
 

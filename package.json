@@ -6,6 +6,8 @@
   "files": [
     "src/**/*.ts",
     "!src/**/*.test.ts",
+    "!src/**/*-test-support.ts",
+    "!src/check-file-lines.ts",
     "README.md",
     "AGENTS.md",
     "tsconfig.json"

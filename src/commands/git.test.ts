@@ -163,6 +163,41 @@ fi
     assert.deepEqual(parsed.map((item) => item.name), ["target-repo"]);
   });
 
+  test("prints omitted repository notice for unsearched git dirty limit", async () => {
+    const fakeGit = path.join(tempDir, "git");
+    writeFakeGitScript(
+      fakeGit,
+      `repo=""
+if [ "$1" = "-C" ]; then
+  repo="$2"
+  shift 2
+fi
+
+if [ "$1" = "status" ]; then
+  printf '## main\\n M src/%s.ts\\n' "$(basename "$repo")"
+fi
+`,
+    );
+    process.env.TRIAGE_COMPANION_GIT = fakeGit;
+    process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = JSON.stringify([tempDir]);
+
+    for (const repo of ["alpha-repo", "beta-repo", "gamma-repo"]) {
+      writeHeadFile(path.join(tempDir, repo, ".git"));
+    }
+
+    const output = await runRegisteredCommand(register, [
+      "git",
+      "dirty",
+      "--limit",
+      "2",
+    ]);
+
+    assert.match(output, /alpha-repo/);
+    assert.match(output, /beta-repo/);
+    assert.doesNotMatch(output, /gamma-repo/);
+    assert.match(output, /1 more dirty repositories matched; raise --limit to show them\./);
+  });
+
   test("trims git status search queries", async () => {
     const fakeGit = path.join(tempDir, "git");
     writeFakeGitScript(

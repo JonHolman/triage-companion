@@ -210,7 +210,7 @@ export async function listMyOpenPullRequests({
   };
 
   const resolveLoginIfNeeded = async (): Promise<string | null> => {
-    if (authorRegex || hasResolvedLogin) {
+    if (hasResolvedLogin) {
       return resolvedLogin;
     }
 

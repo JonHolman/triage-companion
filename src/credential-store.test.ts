@@ -155,6 +155,24 @@ describe("credential-store", () => {
     assert.throws(() => read("triage", "token"), /not valid JSON/);
   });
 
+  test("does not echo corrupt credential store content into the parse error", () => {
+    const fp = configFilePath();
+    fs.mkdirSync(path.dirname(fp), { recursive: true });
+    fs.writeFileSync(fp, '{"github": ghp_supersecrettoken123}', { encoding: "utf-8" });
+    resetCache();
+
+    assert.throws(
+      () => read("triage", "token"),
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        assert.match(message, /not valid JSON/);
+        assert.ok(!message.includes("ghp_supersecrettoken123"));
+        assert.ok(!message.includes("github"));
+        return true;
+      },
+    );
+  });
+
   test("rejects home directories with control characters before reading the credential store", () => {
     const originalHome = process.env.HOME;
     const originalConfigDirValue = process.env.TRIAGE_COMPANION_CONFIG_DIR;

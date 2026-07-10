@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 
+import packageJSON from "../package.json" with { type: "json" };
 import { inlineErrorText } from "./commands/command-utils.ts";
 import { DEFAULT_NODE_MAJOR } from "./config.ts";
 import { registerCommands } from "./commands/index.ts";
@@ -23,7 +24,7 @@ program
       "Each service is enabled by providing its token or credentials.\n" +
       "Run 'triage-companion status' to see which services are configured or available.",
   )
-  .version("1.0.0");
+  .version(packageJSON.version);
 
 async function runMenuCommand(): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {

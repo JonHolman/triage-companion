@@ -110,6 +110,24 @@ describeWithExecutableWrapper("git status output validation", { concurrency: fal
     });
   }
 
+  test("accepts branch names containing closing brackets", () => {
+    withFakeGit(
+      "git-status-bracket-branch-root-",
+      statusScriptFor("repo", "## wip]test...origin/wip]test [ahead 2, behind 1]\n M src/file.ts"),
+      (root) => {
+        const repo = path.join(root, "repo");
+        writeHeadFile(path.join(repo, ".git"));
+
+        const result = listDirtyRepositories({ maxResults: 10, searchRoots: [root] });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0]?.branch, "wip]test");
+        assert.equal(result[0]?.aheadCount, 2);
+        assert.equal(result[0]?.behindCount, 1);
+      },
+    );
+  });
+
   test("accepts git status output with quoted literal backslash escapes in changed paths", () => {
     withFakeGit(
       "git-status-path-literal-backslash-root-",

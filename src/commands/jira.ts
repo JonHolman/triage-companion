@@ -4,23 +4,9 @@ import * as jira from "../clients/jira.ts";
 import { ENV } from "../config-model.ts";
 import { bold, dim, responsiveTable } from "../format.ts";
 import { getServiceDefinition } from "../config-model.ts";
-import { runCommand, textEnvOverrideState } from "./command-utils.ts";
+import { printSetupGuidance, printTokenPermissions, runCommand, textEnvOverrideState } from "./command-utils.ts";
 
 const jiraService = getServiceDefinition("jira");
-
-function printTokenPermissions(): void {
-  console.log(dim("Required token permissions:"));
-  for (const requirement of jiraService.status.permissionRequirements) {
-    console.log(dim(`  ${requirement.feature}: ${requirement.permissions.join(", ")}`));
-  }
-}
-
-function printSetupGuidance(): void {
-  console.log(dim("Setup guidance:"));
-  for (const note of jiraService.status.setupGuidance) {
-    console.log(dim(`  ${note}`));
-  }
-}
 
 function printBaseURLOverrideMessage(context: "saved" | "effective"): void {
   const state = jira.baseURLEnvOverrideState();
@@ -81,8 +67,8 @@ export function register(program: Command): void {
           ENV.JIRA_API_TOKEN,
           `${ENV.JIRA_API_TOKEN} still overrides the saved Jira API token when set.`,
         );
-        printSetupGuidance();
-        printTokenPermissions();
+        printSetupGuidance(jiraService);
+        printTokenPermissions(jiraService);
       });
     });
 
@@ -130,7 +116,7 @@ export function register(program: Command): void {
           ticket.key,
           ticket.issueType,
           ticket.status,
-          ticket.priority,
+          ticket.priority ?? "–",
           ticket.reporter ?? "–",
           ticket.updatedText,
           ticket.summary,

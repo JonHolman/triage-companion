@@ -15,6 +15,22 @@ export const US_SNYK_API_BASE_URLS = [
   "https://api.us.snyk.io/rest",
 ] as const;
 
+const US_SNYK_APP_ORIGINS_BY_API_BASE_URL = new Map<string, string>([
+  [DEFAULT_SNYK_API_BASE_URL, "https://app.snyk.io"],
+  ["https://api.us.snyk.io/rest", "https://app.us.snyk.io"],
+]);
+
+export function snykAppOriginForAPIBaseURL(apiBaseURL: string): string {
+  const appOrigin = US_SNYK_APP_ORIGINS_BY_API_BASE_URL.get(apiBaseURL);
+  if (!appOrigin) {
+    throw new Error(
+      `Snyk API base URL must be one of the US REST API base URLs: ${US_SNYK_API_BASE_URLS.join(", ")}`,
+    );
+  }
+
+  return appOrigin;
+}
+
 export const ENV = {
   CONFIG_DIR: "TRIAGE_COMPANION_CONFIG_DIR",
   GIT_BINARY: "TRIAGE_COMPANION_GIT",
@@ -48,6 +64,22 @@ export interface ConfigFieldModel {
   storage?: StorageBinding;
   defaultValues?: string[];
   validate?: (value: string) => string | null;
+}
+
+export function requiredSettingStorage(field: ConfigFieldModel): StorageBinding {
+  if (!field.storage) {
+    throw new Error(`Config field ${field.key} must define credential storage.`);
+  }
+
+  return field.storage;
+}
+
+export function requiredSettingEnvVar(field: ConfigFieldModel): string {
+  if (!field.envVar) {
+    throw new Error(`Config field ${field.key} must define an environment variable.`);
+  }
+
+  return field.envVar;
 }
 
 export interface TokenPermissionRequirement {

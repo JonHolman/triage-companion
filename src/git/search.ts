@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveSearchRoots } from "../config.ts";
+import { inlineErrorText } from "../text.ts";
 import { expandHomePath } from "../config-path.ts";
 import { validateGitSearchRootEntries } from "../config-model.ts";
 
@@ -15,18 +16,6 @@ const PRUNED_DIRS = new Set<string>([
   "DerivedData",
   "review-artifacts",
 ]);
-
-function inlinePathText(text: string): string {
-  const normalizedLineBreaks = text.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
-}
 
 export interface GitDiscoveryOptions {
   maxDepth?: number;
@@ -120,7 +109,7 @@ function walkGitRoots(
   try {
     entries = fs.readdirSync(root, { withFileTypes: true });
   } catch (error) {
-    throw new Error(`Could not read Git search directory ${inlinePathText(root)}.`, {
+    throw new Error(`Could not read Git search directory ${inlineErrorText(root)}.`, {
       cause: error,
     });
   }
@@ -183,7 +172,6 @@ export function normalizeRepositorySearchRoots(searchRoots: readonly string[]): 
 
   return searchRoots
     .map((root) => expandHomePath(root))
-    .filter(Boolean)
     .filter((root) => {
       try {
         return fs.statSync(root).isDirectory();

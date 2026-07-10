@@ -1,16 +1,9 @@
 export { textEnvOverrideState } from "../config-path.ts";
-
-export function inlineErrorText(text: string): string {
-  const normalizedLineBreaks = text.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
-}
+export { inlineErrorText } from "../text.ts";
+import { inlineErrorText } from "../text.ts";
+import { parseSearchRootsInput } from "../config.ts";
+import type { ServiceModel } from "../config-model.ts";
+import { dim } from "../format.ts";
 
 export async function runCommand(
   commandLabel: string,
@@ -25,11 +18,7 @@ export async function runCommand(
   }
 }
 
-export function parseLimit(value: string | undefined, label: string, defaultValue: number): number {
-  if (value === undefined) {
-    return defaultValue;
-  }
-
+export function parseLimit(value: string, label: string): number {
   if (value.trim() !== value) {
     throw new Error(`${label} must not include surrounding whitespace.`);
   }
@@ -44,4 +33,29 @@ export function parseLimit(value: string | undefined, label: string, defaultValu
   }
 
   return parsed;
+}
+
+export function parseSearchRootsJSON(value: string, label: string): string[] {
+  if (value.trim().length === 0) {
+    throw new Error(`${label} must be a JSON array of non-empty strings.`);
+  }
+  if (value.trim() !== value) {
+    throw new Error(`${label} must not include surrounding whitespace.`);
+  }
+
+  return parseSearchRootsInput(value);
+}
+
+export function printTokenPermissions(service: ServiceModel): void {
+  console.log(dim("Required token permissions:"));
+  for (const requirement of service.status.permissionRequirements) {
+    console.log(dim(`  ${requirement.feature}: ${requirement.permissions.join(", ")}`));
+  }
+}
+
+export function printSetupGuidance(service: ServiceModel): void {
+  console.log(dim("Setup guidance:"));
+  for (const note of service.status.setupGuidance) {
+    console.log(dim(`  ${note}`));
+  }
 }

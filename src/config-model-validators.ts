@@ -1,9 +1,8 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 
 import { US_SNYK_API_BASE_URLS } from "./config-model-core.ts";
+import { expandHomePath } from "./home-path.ts";
 
 const GIT_VERSION_CHECK_TIMEOUT_MS = 5000;
 
@@ -150,38 +149,10 @@ export function safeCommaSeparatedAPIPathSegments(value: string): string | null 
     : "must contain safe IDs separated by commas";
 }
 
-function expandHomeRelativePath(candidate: string): string {
-  if (candidate === "~") {
-    return validatedHomeDirectory();
-  }
-
-  if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
-    const homeDirectory = validatedHomeDirectory();
-    return path.join(homeDirectory, candidate.slice(2));
-  }
-
-  return candidate;
-}
-
-function validatedHomeDirectory(): string {
-  const homeDirectory = os.homedir();
-  if (homeDirectory.trim().length === 0) {
-    throw new Error("Home directory is invalid: must not be empty.");
-  }
-  if (homeDirectory.trim() !== homeDirectory) {
-    throw new Error("Home directory is invalid: must not include surrounding whitespace.");
-  }
-  if (/[\u0000-\u001F\u007F-\u009F]/.test(homeDirectory)) {
-    throw new Error("Home directory is invalid: must not include control characters.");
-  }
-
-  return homeDirectory;
-}
-
 export function executablePath(value: string): string | null {
   let expanded: string;
   try {
-    expanded = expandHomeRelativePath(value);
+    expanded = expandHomePath(value);
   } catch (error) {
     return error instanceof Error ? error.message : "must point to an executable path";
   }

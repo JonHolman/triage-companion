@@ -5,21 +5,20 @@ import { inlineErrorText, parseLimit, runCommand } from "./command-utils.ts";
 
 describe("command utilities", () => {
   test("parses positive integer limits", () => {
-    assert.equal(parseLimit(undefined, "--limit", 50), 50);
-    assert.equal(parseLimit("25", "--limit", 50), 25);
+    assert.equal(parseLimit("25", "--limit"), 25);
   });
 
   test("rejects partial and non-positive limits", () => {
-    assert.throws(() => parseLimit("2abc", "--limit", 50), /positive integer/);
-    assert.throws(() => parseLimit("1.5", "--limit", 50), /positive integer/);
-    assert.throws(() => parseLimit("0", "--limit", 50), /positive integer/);
-    assert.throws(() => parseLimit("-1", "--limit", 50), /positive integer/);
-    assert.throws(() => parseLimit("999999999999999999999", "--limit", 50), /positive integer/);
+    assert.throws(() => parseLimit("2abc", "--limit"), /positive integer/);
+    assert.throws(() => parseLimit("1.5", "--limit"), /positive integer/);
+    assert.throws(() => parseLimit("0", "--limit"), /positive integer/);
+    assert.throws(() => parseLimit("-1", "--limit"), /positive integer/);
+    assert.throws(() => parseLimit("999999999999999999999", "--limit"), /positive integer/);
   });
 
   test("rejects limits with surrounding whitespace", () => {
     assert.throws(
-      () => parseLimit(" 25 ", "--limit", 50),
+      () => parseLimit(" 25 ", "--limit"),
       /--limit must not include surrounding whitespace/,
     );
   });

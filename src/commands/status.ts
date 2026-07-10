@@ -8,7 +8,7 @@ import { configFilePath, read as readCredential } from "../credential-store.ts";
 import { bold, dim } from "../format.ts";
 import { listServiceDefinitions, resolveServiceState, type TokenPermissionRequirement } from "../config-model.ts";
 import { type ServiceId } from "../config-model.ts";
-import { inlineErrorText } from "./command-utils.ts";
+import { inlineErrorText, runCommand } from "./command-utils.ts";
 
 export interface StatusDependencies {
   hasGitHubToken: () => boolean;
@@ -140,6 +140,8 @@ export function register(program: Command, deps: StatusDependencies = defaultDep
     .command("status")
     .description("Show configuration and availability status for all services")
     .action(() => {
-      process.stdout.write(buildStatusReport(deps));
+      return runCommand("status", () => {
+        process.stdout.write(buildStatusReport(deps));
+      });
     });
 }

@@ -28,26 +28,8 @@ import {
   parseGitHubDate,
   requireWorkflowRunWebURL,
   validatePositiveIntegerOption,
-  validateRepositoryFullName,
+  uniqueRepositoryFullNames,
 } from "./github-url.ts";
-
-function uniqueRepositoryFullNames(repositoryFullNames: readonly string[]): string[] {
-  const uniqueNames: string[] = [];
-  const seen = new Set<string>();
-
-  for (const repositoryName of repositoryFullNames) {
-    const validated = validateRepositoryFullName(repositoryName);
-    const key = validated.toLowerCase();
-    if (seen.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    uniqueNames.push(validated);
-  }
-
-  return uniqueNames;
-}
 
 function parseWorkflowRun(
   run: WorkflowRunResponse,
@@ -189,7 +171,7 @@ export async function listFailedWorkflowRuns(
 
   return runs.sort(
     (left, right) =>
-      (right.updatedAt?.getTime() ?? 0) - (left.updatedAt?.getTime() ?? 0) ||
+      right.updatedAt.getTime() - left.updatedAt.getTime() ||
       left.repositoryFullName.localeCompare(right.repositoryFullName) ||
       left.workflowName.localeCompare(right.workflowName),
   );

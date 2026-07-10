@@ -36,7 +36,7 @@ import {
 } from "./github-notification-parse.ts";
 import {
   parseGitHubDate,
-  requireGitHubRepositoryLinkURL,
+  requireGitHubRepositoryWebURL,
   requireGitHubRepositoryRootURL,
   requireGitHubWebURL,
   validateNotificationThreadID,
@@ -84,7 +84,7 @@ async function fetchNotifications({
       if (sso?.includes("required")) {
         const urlMatch = sso.match(/url=([^;]+)/);
         throw new Error(
-          `SSO authorization required. Visit: ${urlMatch?.[1] || "(check GitHub settings)"}`,
+          `SSO authorization required. Visit: ${inlineErrorText(urlMatch?.[1] || "(check GitHub settings)")}`,
         );
       }
     }
@@ -251,7 +251,7 @@ async function fetchSubjectWebURLs(
 
         return {
           id,
-          webURL: requireGitHubRepositoryLinkURL(
+          webURL: requireGitHubRepositoryWebURL(
             htmlURL,
             `GitHub notification ${id} subject`,
             repositoryFullName,
@@ -339,7 +339,7 @@ export async function listNotifications({
         webURL,
       };
     })
-    .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 }
 
 export async function listSecurityAlertNotificationRepositories(): Promise<string[]> {

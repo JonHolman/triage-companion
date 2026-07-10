@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { resolveConfigFilePath } from "./config-path.ts";
+import { inlineErrorText, isRecord } from "./text.ts";
 
 const SEPARATOR = String.fromCharCode(31);
 
@@ -14,24 +15,8 @@ export interface CredentialUpdate {
   value: string | null;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function emptyValues(): Record<string, string> {
   return Object.create(null) as Record<string, string>;
-}
-
-function inlineErrorText(text: string): string {
-  const normalizedLineBreaks = text.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
 }
 
 function cloneValues(values: Record<string, string>): Record<string, string> {
@@ -81,8 +66,7 @@ function loadValues(): Record<string, string> {
   try {
     parsed = JSON.parse(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Credential store ${safeStorePath} is not valid JSON: ${inlineErrorText(message)}`, {
+    throw new Error(`Credential store ${safeStorePath} is not valid JSON.`, {
       cause: error,
     });
   }

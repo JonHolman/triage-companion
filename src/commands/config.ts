@@ -3,60 +3,40 @@ import { Command } from "commander";
 import { buildConfigurationSummary } from "../config-summary.ts";
 import {
   clearSearchRoots,
-  parseSearchRootsInput,
   resolveSearchRoots,
   saveSearchRoots,
   searchRootsEnvOverrideState,
 } from "../config.ts";
 import { ENV } from "../config-model.ts";
-import { runCommand } from "./command-utils.ts";
-
-function parseSearchRootsArgument(value: string): string[] {
-  if (value.trim().length === 0) {
-    throw new Error("Git search roots must be a JSON array of non-empty strings.");
-  }
-  if (value.trim() !== value) {
-    throw new Error("Git search roots must not include surrounding whitespace.");
-  }
-
-  return parseSearchRootsInput(value);
-}
+import { parseSearchRootsJSON, runCommand } from "./command-utils.ts";
 
 export function register(program: Command): void {
   const cmd = program.command("config").description("Configuration management");
 
-  const printSearchRootsOverrideMessage = (): boolean => {
+  const printSearchRootsOverrideMessage = (validMessage: string): void => {
     const state = searchRootsEnvOverrideState();
     if (state === "missing") {
-      return false;
+      return;
     }
 
     if (state === "invalid") {
       console.log(
         `  ${ENV.GIT_SEARCH_ROOTS} is still set but invalid, so Git repository discovery will fail until it is fixed or unset.`,
       );
-      return true;
+      return;
     }
 
-    console.log(`  ${ENV.GIT_SEARCH_ROOTS} still overrides the saved roots when set.`);
-    return true;
+    console.log(`  ${validMessage}`);
   };
 
-  const printSearchRootsResetOverrideMessage = (): boolean => {
-    const state = searchRootsEnvOverrideState();
-    if (state === "missing") {
-      return false;
+  const reportSearchRootsCleared = (): void => {
+    if (searchRootsEnvOverrideState() !== "missing") {
+      console.log("✓ Stored Git search roots cleared.");
+      printSearchRootsOverrideMessage(`${ENV.GIT_SEARCH_ROOTS} still overrides the defaults when set.`);
+      return;
     }
 
-    if (state === "invalid") {
-      console.log(
-        `  ${ENV.GIT_SEARCH_ROOTS} is still set but invalid, so Git repository discovery will fail until it is fixed or unset.`,
-      );
-      return true;
-    }
-
-    console.log(`  ${ENV.GIT_SEARCH_ROOTS} still overrides the defaults when set.`);
-    return true;
+    console.log("✓ Git search roots reset to defaults.");
   };
 
   cmd
@@ -77,16 +57,10 @@ export function register(program: Command): void {
     )
     .action((paths: string) => {
       return runCommand("config git-search-roots", () => {
-        const roots = parseSearchRootsArgument(paths);
+        const roots = parseSearchRootsJSON(paths, "Git search roots");
         const savedRoots = saveSearchRoots(roots);
         if (roots.length === 0) {
-          if (searchRootsEnvOverrideState() !== "missing") {
-            console.log("✓ Stored Git search roots cleared.");
-            printSearchRootsResetOverrideMessage();
-            return;
-          }
-
-          console.log("✓ Git search roots reset to defaults.");
+          reportSearchRootsCleared();
           return;
         }
 
@@ -99,7 +73,7 @@ export function register(program: Command): void {
             console.log("  Some saved roots do not currently exist as directories and will be ignored.");
           }
         }
-        printSearchRootsOverrideMessage();
+        printSearchRootsOverrideMessage(`${ENV.GIT_SEARCH_ROOTS} still overrides the saved roots when set.`);
       });
     });
 
@@ -109,13 +83,7 @@ export function register(program: Command): void {
     .action(() => {
       return runCommand("config reset-git-search-roots", () => {
         clearSearchRoots();
-        if (searchRootsEnvOverrideState() !== "missing") {
-          console.log("✓ Stored Git search roots cleared.");
-          printSearchRootsResetOverrideMessage();
-          return;
-        }
-
-        console.log("✓ Git search roots reset to defaults.");
+        reportSearchRootsCleared();
       });
     });
 }

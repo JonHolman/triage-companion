@@ -74,3 +74,48 @@ export function createResponse(body: unknown, status = 200): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+export function issueFields(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    summary: "Valid summary",
+    issuetype: { name: "Task" },
+    status: { name: "To Do" },
+    priority: { name: "Medium" },
+    updated: "2026-06-13T12:38:56.000Z",
+    ...overrides,
+  };
+}
+
+export function searchIssue(
+  key: string,
+  fieldOverrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { key, fields: issueFields(fieldOverrides) };
+}
+
+export function searchPage(
+  issues: unknown[],
+  page: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { issues, ...page };
+}
+
+export function searchResponse(
+  issues: unknown[],
+  page: Record<string, unknown> = {},
+): Response {
+  return createResponse(searchPage(issues, page));
+}
+
+export function searchURL(baseURL: string, nextPageToken?: string): string {
+  const params = new URLSearchParams({
+    jql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
+    fields: "summary,status,priority,issuetype,reporter,updated,resolution",
+    maxResults: "100",
+  });
+  if (nextPageToken !== undefined) {
+    params.set("nextPageToken", nextPageToken);
+  }
+
+  return `${baseURL}/rest/api/3/search/jql?${params}`;
+}

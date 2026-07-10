@@ -1,3 +1,4 @@
+export { resolveGitBinary } from "../git/executor.ts";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -8,7 +9,6 @@ import {
   resolveRepositorySearchRoots,
 } from "../git/search.ts";
 import {
-  resolveGitBinary as detectGitBinary,
   requireGitBinary,
   runGitCommand,
 } from "../git/executor.ts";
@@ -45,10 +45,6 @@ interface ListDirtyOptions {
 }
 
 const PORCELAIN_STATUS_CODES = new Set([" ", "M", "T", "A", "D", "R", "C", "U"]);
-
-export function resolveGitBinary(): string | null {
-  return detectGitBinary();
-}
 
 function validateRepositoryPath(repoDir: string): void {
   if (/[\u0000-\u001F\u007F-\u009F]/.test(repoDir)) {
@@ -232,18 +228,17 @@ function parseBranchName(line: string): string {
 }
 
 function parseTrackingCounts(line: string): { ahead: number; behind: number } {
-  const bracketMatch = /\[(.*)\]$/.exec(line);
-  if (!bracketMatch) {
-    if (line.includes("[") || line.includes("]")) {
-      throw new Error("Git status branch header must include valid ahead/behind counts.");
-    }
-
+  const bracketStart = line.indexOf("[");
+  if (bracketStart === -1) {
     return { ahead: 0, behind: 0 };
   }
 
-  const prefix = line.slice(0, bracketMatch.index);
-  const trackingText = bracketMatch[1] ?? "";
-  if (prefix.includes("[") || trackingText.includes("[") || trackingText.includes("]")) {
+  if (!line.endsWith("]")) {
+    throw new Error("Git status branch header must include valid ahead/behind counts.");
+  }
+
+  const trackingText = line.slice(bracketStart + 1, -1);
+  if (trackingText.includes("[") || trackingText.includes("]")) {
     throw new Error("Git status branch header must include valid ahead/behind counts.");
   }
 

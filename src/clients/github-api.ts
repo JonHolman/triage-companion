@@ -63,6 +63,8 @@ export async function ghFetchWithErrorContext(
 function stableGitHubPaginationQuery(url: URL): string {
   const params = new URLSearchParams(url.searchParams);
   params.delete("page");
+  params.delete("after");
+  params.delete("before");
   params.sort();
   return params.toString();
 }

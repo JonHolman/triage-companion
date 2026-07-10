@@ -1,7 +1,7 @@
 export interface NotificationSubject {
   type?: string;
   title?: string;
-  url?: string;
+  url?: string | null;
 }
 
 export interface NotificationRepository {
@@ -28,7 +28,7 @@ export interface GitHubNotification {
   subjectMerged: boolean | null;
   subjectAuthorLogin: string | null;
   reason: string;
-  updatedAt: Date | null;
+  updatedAt: Date;
   isUnread: boolean;
   webURL: string;
 }
@@ -83,7 +83,7 @@ export interface FailedWorkflowRun {
   conclusion: string;
   url: string;
   createdAt: Date | null;
-  updatedAt: Date | null;
+  updatedAt: Date;
 }
 
 export interface WorkflowRunResponse extends Record<string, unknown> {

@@ -16,12 +16,13 @@ import {
 import { paginate } from "./snyk-runtime.ts";
 import {
   invalidStringCandidate,
+  isRecord,
   parseDate,
   pickString,
-  scanItemRelationship,
+  requiredProjectID,
+  snykIssueWebURL,
   validateAPIPathID,
   validatedStringCandidate,
-  validateSnykIssueURL,
 } from "./snyk-parse.ts";
 import type {
   ListOpenIssuesOptions,
@@ -153,33 +154,13 @@ async function loadProjectNames(
   return projectNames;
 }
 
-function validateIssueURLAttribute(attributes: Record<string, unknown>, issueId: string): string {
-  const rawIssueURL = attributes.url;
-  if (rawIssueURL === undefined) {
-    throw new Error(`Snyk issue missing url: ${issueId}`);
-  }
-  if (typeof rawIssueURL !== "string") {
-    throw new Error(`Snyk issue ${issueId} url must be a string.`);
-  }
-  const issueURL = pickString({ url: rawIssueURL }, ["url"]);
-  if (!issueURL) {
-    const invalidIssueURL = invalidStringCandidate({ url: rawIssueURL }, ["url"]);
-    if (invalidIssueURL) {
-      throw new Error(`Snyk issue ${issueId} ${invalidIssueURL.key} ${invalidIssueURL.reason}.`);
-    }
-    throw new Error(`Snyk issue missing url: ${issueId}`);
-  }
-
-  return issueURL;
-}
-
 function validateIssueSeverity(
   attributes: Record<string, unknown>,
   issueId: string,
 ): string {
   const issueSeverity = validatedStringCandidate(
     attributes,
-    ["effective_severity_level", "severity"],
+    ["effective_severity_level"],
     `Snyk issue ${issueId}`,
   );
   if (!issueSeverity) {
@@ -196,7 +177,7 @@ function validateIssueSeverity(
 function validateIssueStatus(attributes: Record<string, unknown>, issueId: string): string {
   const issueStatus = validatedStringCandidate(
     attributes,
-    ["status", "state"],
+    ["status"],
     `Snyk issue ${issueId}`,
   );
   if (!issueStatus) {
@@ -205,35 +186,24 @@ function validateIssueStatus(attributes: Record<string, unknown>, issueId: strin
   if (issueStatus.toLowerCase() !== "open") {
     throw new Error(`Snyk issue ${issueId} must have status open.`);
   }
-  if ("ignored" in attributes) {
-    if (typeof attributes.ignored !== "boolean") {
-      throw new Error(`Snyk issue ${issueId} ignored must be a boolean.`);
-    }
-    if (attributes.ignored) {
-      throw new Error(`Snyk issue ${issueId} must not be ignored.`);
-    }
+  if (typeof attributes.ignored !== "boolean") {
+    throw new Error(`Snyk issue ${issueId} ignored must be a boolean.`);
+  }
+  if (attributes.ignored) {
+    throw new Error(`Snyk issue ${issueId} must not be ignored.`);
   }
 
   return issueStatus;
 }
 
 function resolveIssueProjectName(
-  attributes: Record<string, unknown>,
   issueId: string,
-  projectID: string | null,
+  projectID: string,
   projectNames: Map<string, string>,
 ): string {
-  if (projectID) {
-    const name = projectNames.get(projectID);
-    if (!name) {
-      throw new Error(`Snyk issue ${issueId} references unknown project ${projectID}.`);
-    }
-    return name;
-  }
-
-  const name = validatedStringCandidate(attributes, ["project_name"], `Snyk issue ${issueId}`);
+  const name = projectNames.get(projectID);
   if (!name) {
-    throw new Error(`Snyk issue missing project name: ${issueId}`);
+    throw new Error(`Snyk issue ${issueId} references unknown project ${projectID}.`);
   }
 
   return name;
@@ -242,27 +212,68 @@ function resolveIssueProjectName(
 function parseIssueDates(
   attributes: Record<string, unknown>,
   issueId: string,
-): { introducedAt: Date | null; updatedAt: Date | null } {
+): { introducedAt: Date; updatedAt: Date } {
   const introducedAtText = validatedStringCandidate(
     attributes,
-    ["introduced_date", "created_at", "created"],
+    ["created_at"],
     `Snyk issue ${issueId}`,
   );
   const updatedAtText = validatedStringCandidate(
     attributes,
-    ["updated_at", "updated"],
+    ["updated_at"],
     `Snyk issue ${issueId}`,
   );
   const introducedAt = parseDate(introducedAtText);
-  if (introducedAtText && !introducedAt) {
+  if (!introducedAt) {
     throw new Error(`Snyk issue invalid introduced timestamp: ${issueId}`);
   }
   const updatedAt = parseDate(updatedAtText);
-  if (updatedAtText && !updatedAt) {
+  if (!updatedAt) {
     throw new Error(`Snyk issue invalid updated timestamp: ${issueId}`);
   }
 
   return { introducedAt, updatedAt };
+}
+
+function parsePackageName(attributes: Record<string, unknown>, issueId: string): string | null {
+  const coordinates = attributes.coordinates;
+  if (coordinates === undefined) {
+    return null;
+  }
+  if (!Array.isArray(coordinates)) {
+    throw new Error(`Snyk issue ${issueId} coordinates must be an array.`);
+  }
+
+  for (const coordinate of coordinates) {
+    if (!isRecord(coordinate)) {
+      throw new Error(`Snyk issue ${issueId} coordinates entries must be objects.`);
+    }
+
+    const representations = coordinate.representations;
+    if (!Array.isArray(representations)) {
+      throw new Error(`Snyk issue ${issueId} coordinate representations must be an array.`);
+    }
+
+    for (const representation of representations) {
+      if (!isRecord(representation)) {
+        throw new Error(`Snyk issue ${issueId} coordinate representations entries must be objects.`);
+      }
+      if (representation.package === undefined) {
+        continue;
+      }
+
+      const name = validatedStringCandidate(
+        representation.package,
+        ["name"],
+        `Snyk issue ${issueId} package`,
+      );
+      if (name) {
+        return name;
+      }
+    }
+  }
+
+  return null;
 }
 
 function parseIssue(
@@ -270,6 +281,7 @@ function parseIssue(
   org: SnykOrganization,
   projectNames: Map<string, string>,
   severity: string | undefined,
+  baseURL: string,
 ): SnykIssue | null {
   const rawIssueId = item.id;
   if (rawIssueId === undefined) {
@@ -281,43 +293,31 @@ function parseIssue(
     throw new Error(`Snyk issue ${issueId} attributes must be an object.`);
   }
 
-  const scanItem = scanItemRelationship(item, `Snyk issue ${issueId}`);
-  if (scanItem?.type && scanItem.type !== "project") {
-    throw new Error(`Snyk issue ${issueId} scan_item relationship type must be project.`);
-  }
-  if (scanItem?.type === "project" && scanItem.id === null) {
-    throw new Error(`Snyk issue ${issueId} scan_item relationship must include a project id.`);
-  }
-
-  const projectID = scanItem && scanItem.id !== null
-    ? validateAPIPathID(scanItem.id, "Snyk project ID")
-    : null;
-  const issueURL = validateIssueURLAttribute(attributes, issueId);
+  const projectID = requiredProjectID(item, `Snyk issue ${issueId}`);
   const issueSeverity = validateIssueSeverity(attributes, issueId);
   const issueStatus = validateIssueStatus(attributes, issueId);
   if (severity && issueSeverity.toLowerCase() !== severity) {
     return null;
   }
-  const issueType = validatedStringCandidate(attributes, ["type", "issue_type"], `Snyk issue ${issueId}`);
+  const issueType = validatedStringCandidate(attributes, ["type"], `Snyk issue ${issueId}`);
   if (!issueType) {
     throw new Error(`Snyk issue missing type: ${issueId}`);
   }
-  const issueTitle = validatedStringCandidate(
-    attributes,
-    ["title", "display_name", "name"],
-    `Snyk issue ${issueId}`,
-  );
+  const issueTitle = validatedStringCandidate(attributes, ["title"], `Snyk issue ${issueId}`);
   if (!issueTitle) {
     throw new Error(`Snyk issue missing title: ${issueId}`);
   }
+  const issueKey = validatedStringCandidate(attributes, ["key"], `Snyk issue ${issueId}`);
+  if (!issueKey) {
+    throw new Error(`Snyk issue missing key: ${issueId}`);
+  }
 
-  const validatedIssueURL = validateSnykIssueURL(issueURL, issueId, org.slug, projectID);
-  const projectName = resolveIssueProjectName(attributes, issueId, projectID, projectNames);
+  const projectName = resolveIssueProjectName(issueId, projectID, projectNames);
   const { introducedAt, updatedAt } = parseIssueDates(attributes, issueId);
 
   return {
     id: `${org.id}#${issueId}`,
-    url: validatedIssueURL,
+    url: snykIssueWebURL(baseURL, org.slug, projectID, issueKey),
     title: issueTitle,
     severity: issueSeverity,
     status: issueStatus,
@@ -327,12 +327,8 @@ function parseIssue(
     organizationName: org.name,
     projectID,
     projectName,
-    issueKey: validatedStringCandidate(attributes, ["key"], `Snyk issue ${issueId}`),
-    packageName: validatedStringCandidate(
-      attributes,
-      ["package_name", "coordinates", "display_target"],
-      `Snyk issue ${issueId}`,
-    ),
+    issueKey,
+    packageName: parsePackageName(attributes, issueId),
     introducedAt,
     updatedAt,
   };
@@ -344,7 +340,7 @@ function sortIssues(issues: SnykIssue[]): void {
       severityRank(b.severity) - severityRank(a.severity) ||
       a.organizationName.localeCompare(b.organizationName) ||
       a.projectName.localeCompare(b.projectName) ||
-      (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0) ||
+      b.updatedAt.getTime() - a.updatedAt.getTime() ||
       a.title.localeCompare(b.title),
   );
 }
@@ -384,15 +380,13 @@ export async function listOpenIssues({
     );
 
     for (const item of issueData) {
-      const issue = parseIssue(item, org, projectNames, validatedSeverity);
+      const issue = parseIssue(item, org, projectNames, validatedSeverity, baseURL);
       if (!issue) {
         continue;
       }
 
       issues.push(issue);
-      projectKeys.add(
-        issue.projectID ? `${org.id}#${issue.projectID}` : `${org.id}#name:${issue.projectName}`,
-      );
+      projectKeys.add(`${org.id}#${issue.projectID}`);
     }
   }
 

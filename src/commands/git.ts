@@ -28,14 +28,15 @@ export function register(program: Command): void {
     .option("--json", "Output as JSON", false)
     .action((opts: { limit: string; search?: string; json: boolean }) => {
       return runCommand("git dirty", () => {
-        const requestedLimit = parseLimit(opts.limit, "--limit", 300);
+        const requestedLimit = parseLimit(opts.limit, "--limit");
         const query = parseSearchOption(opts.search);
         const repos = git.listDirtyRepositories({
-          maxResults: query ? Number.MAX_SAFE_INTEGER : requestedLimit,
+          maxResults: Number.MAX_SAFE_INTEGER,
           searchQuery: query,
         });
 
         const matches = repos.slice(0, requestedLimit);
+        const omittedCount = repos.length - matches.length;
 
         if (opts.json) {
           console.log(JSON.stringify(matches, null, 2));
@@ -77,6 +78,10 @@ export function register(program: Command): void {
             headers: ["Path", "Repo", "Branch", "#", "Changes", "Sync"],
           }),
         );
+
+        if (omittedCount > 0) {
+          console.log(dim(`${omittedCount} more dirty repositories matched; raise --limit to show them.`));
+        }
       });
     });
 
@@ -88,7 +93,7 @@ export function register(program: Command): void {
       return runCommand("git status", () => {
         const query = parseSearchOption(opts.search);
         const repos = git.listDirtyRepositories({
-          maxResults: query ? Number.MAX_SAFE_INTEGER : undefined,
+          maxResults: Number.MAX_SAFE_INTEGER,
           searchQuery: query,
         });
 

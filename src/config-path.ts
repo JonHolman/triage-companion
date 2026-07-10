@@ -1,7 +1,9 @@
-import os from "node:os";
 import path from "node:path";
 
 import { ENV } from "./config-model.ts";
+import { expandHomePath, validatedHomeDirectory } from "./home-path.ts";
+
+export { expandHomePath, validatedHomeDirectory };
 
 export function trimEnvValue(value: string | undefined | null): string | null {
   if (value === undefined || value === null) {
@@ -29,47 +31,6 @@ export function textEnvOverrideState(
   return /[\u0000-\u001F\u007F-\u009F]/.test(value) ? "invalid" : "valid";
 }
 
-export function expandHomePath(candidate: string): string {
-  if (candidate === "~") {
-    return validatedHomeDirectory();
-  }
-
-  if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
-    const homeDirectory = validatedHomeDirectory();
-    return path.join(homeDirectory, candidate.slice(2));
-  }
-
-  return candidate;
-}
-
-export function validatedHomeDirectory(): string {
-  const homeDirectory = os.homedir();
-  if (homeDirectory.trim().length === 0) {
-    throw new Error("Home directory is invalid: must not be empty.");
-  }
-  if (homeDirectory.trim() !== homeDirectory) {
-    throw new Error("Home directory is invalid: must not include surrounding whitespace.");
-  }
-  if (/[\u0000-\u001F\u007F-\u009F]/.test(homeDirectory)) {
-    throw new Error("Home directory is invalid: must not include control characters.");
-  }
-
-  return homeDirectory;
-}
-
-function expandConfiguredHomePath(candidate: string): string {
-  if (candidate === "~") {
-    return validatedHomeDirectory();
-  }
-
-  if (candidate.startsWith("~/") || candidate.startsWith("~\\")) {
-    const homeDirectory = validatedHomeDirectory();
-    return path.join(homeDirectory, candidate.slice(2));
-  }
-
-  return candidate;
-}
-
 function validatedEnvPathOverride(
   value: string | undefined,
   envName: string,
@@ -87,7 +48,7 @@ function validatedEnvPathOverride(
     throw new Error(`${envName} is invalid: must not include control characters.`);
   }
 
-  return expandConfiguredHomePath(value);
+  return expandHomePath(value);
 }
 
 export function resolveConfigDirectory(): string {

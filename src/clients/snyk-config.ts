@@ -6,17 +6,22 @@ import {
   getServiceSetting,
   hasUnsafeURLPathSegments,
   normalizeSnykAPIBaseURL,
+  requiredSettingEnvVar,
+  requiredSettingStorage,
   US_SNYK_API_BASE_URLS,
 } from "../config-model.ts";
 import { KNOWN_SEVERITIES, normalizedKnownSeverity } from "../severity.ts";
+import { validateConfiguredText } from "../text.ts";
 import { validateAPIPathID } from "./snyk-parse.ts";
 
 const tokenField = getServiceSetting("snyk", "token");
 const apiBaseURLField = getServiceSetting("snyk", "apiBaseURL");
-const SERVICE = tokenField.storage?.service ?? "Triage Companion-Snyk";
-const ACCOUNT = tokenField.storage?.account ?? "token";
-const API_BASE_URL_SERVICE = apiBaseURLField.storage?.service ?? "Triage Companion-Config";
-const API_BASE_URL_ACCOUNT = apiBaseURLField.storage?.account ?? "snyk-api-base-url";
+const tokenStorage = requiredSettingStorage(tokenField);
+const apiBaseURLStorage = requiredSettingStorage(apiBaseURLField);
+const SERVICE = tokenStorage.service;
+const ACCOUNT = tokenStorage.account;
+const API_BASE_URL_SERVICE = apiBaseURLStorage.service;
+const API_BASE_URL_ACCOUNT = apiBaseURLStorage.account;
 
 export const snykPermissionText = getServiceDefinition("snyk").status.permissionRequirements
   .map((requirement) => `${requirement.feature}: ${requirement.permissions.join(", ")}`)
@@ -39,20 +44,6 @@ export function validateSeverityFilter(value: string | undefined): string | unde
   }
 
   return normalized;
-}
-
-function validateConfiguredText(value: string, label: string): string {
-  if (value.trim().length === 0) {
-    throw new Error(`${label} is required.`);
-  }
-  if (value.trim() !== value) {
-    throw new Error(`${label} must not include surrounding whitespace.`);
-  }
-  if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
-    throw new Error(`${label} must not include control characters.`);
-  }
-
-  return value;
 }
 
 function validateAPIBaseURL(value: string): string {
@@ -102,7 +93,7 @@ function rawNonBlankEnvValue(value: string | undefined | null): string | null {
 }
 
 export function resolveBaseURL(): string {
-  const envVar = apiBaseURLField.envVar ?? ENV.SNYK_API_BASE_URL;
+  const envVar = requiredSettingEnvVar(apiBaseURLField);
   if (Object.hasOwn(process.env, envVar)) {
     return validateAPIBaseURL(process.env[envVar] ?? "");
   }
@@ -112,21 +103,22 @@ export function resolveBaseURL(): string {
 }
 
 export function apiBaseURLEnvOverrideState(
-  raw: string | undefined | null = process.env[apiBaseURLField.envVar ?? ENV.SNYK_API_BASE_URL],
+  raw: string | undefined | null = process.env[requiredSettingEnvVar(apiBaseURLField)],
 ): "missing" | "valid" | "invalid" {
   if (raw === undefined || raw === null) {
     return "missing";
   }
 
   try {
-    return validateAPIBaseURL(raw) ? "valid" : "invalid";
+    validateAPIBaseURL(raw);
+    return "valid";
   } catch {
     return "invalid";
   }
 }
 
 export function resolveToken(): string | null {
-  const token = creds.readCredential(SERVICE, ACCOUNT, tokenField.envVar ?? ENV.SNYK_TOKEN);
+  const token = creds.readCredential(SERVICE, ACCOUNT, requiredSettingEnvVar(tokenField));
   return token !== null ? validateConfiguredText(token, "Snyk token") : null;
 }
 

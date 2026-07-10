@@ -1,3 +1,4 @@
+import { inlineErrorText as escapeControlCharacters } from "./text.ts";
 import { configFilePath, read as readCredential } from "./credential-store.ts";
 import {
   ENV,
@@ -20,18 +21,6 @@ import { trimEnvValue } from "./config-path.ts";
 
 function errorMessage(error: unknown): string {
   return escapeControlCharacters(error instanceof Error ? error.message : String(error));
-}
-
-function escapeControlCharacters(value: string): string {
-  const normalizedLineBreaks = value.replace(/\r\n?|\n/g, ", ");
-  return normalizedLineBreaks.replace(/[\u0000-\u001F\u007F-\u009F]/g, (character) => {
-    switch (character) {
-      case "\t":
-        return "\\t";
-      default:
-        return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
-    }
-  });
 }
 
 function describeResolvedValue(value: string | null, source: string, secret: boolean): string {
@@ -173,7 +162,7 @@ function describeResolvedFieldValue(
   value: string | null,
   source: string,
 ): string {
-  const validation = value !== null && source !== "default" ? field.validate?.(value) : null;
+  const validation = value !== null && source !== "default" ? field.validate?.(value) ?? null : null;
   if (validation !== null && value !== null) {
     if (
       field.secret ||

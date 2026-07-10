@@ -14,23 +14,9 @@ import {
   normalizedKnownSeverity,
   summarizeSeverities,
 } from "../severity.ts";
-import { runCommand, textEnvOverrideState } from "./command-utils.ts";
+import { printSetupGuidance, printTokenPermissions, runCommand, textEnvOverrideState } from "./command-utils.ts";
 
 const snykService = getServiceDefinition("snyk");
-
-function printTokenPermissions(): void {
-  console.log(dim("Required token permissions:"));
-  for (const requirement of snykService.status.permissionRequirements) {
-    console.log(dim(`  ${requirement.feature}: ${requirement.permissions.join(", ")}`));
-  }
-}
-
-function printSetupGuidance(): void {
-  console.log(dim("Setup guidance:"));
-  for (const note of snykService.status.setupGuidance) {
-    console.log(dim(`  ${note}`));
-  }
-}
 
 function printAPIBaseURLOverrideMessage(context: "saved" | "default"): void {
   const state = snyk.apiBaseURLEnvOverrideState();
@@ -83,8 +69,8 @@ export function register(program: Command): void {
       return runCommand("snyk token", () => {
         snyk.saveToken(token);
         console.log("✓ Snyk token saved.");
-        printSetupGuidance();
-        printTokenPermissions();
+        printSetupGuidance(snykService);
+        printTokenPermissions(snykService);
       });
     });
 

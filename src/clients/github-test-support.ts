@@ -7,6 +7,55 @@ import { resetCache } from "../credential-store.ts";
 
 export const describeWithExecutableWrapper = process.platform === "win32" ? describe.skip : describe;
 
+export const OBJECT_ID_A = "a".repeat(40);
+export const OBJECT_ID_B = "b".repeat(40);
+
+export function jsonResponse(body: unknown, status: number = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export function gitCaseScript(
+  cases: Iterable<readonly [pattern: string, action: string]>,
+): string {
+  const lines = [...cases].map(([pattern, action]) => `  ${pattern}) ${action} ;;`);
+  return `case "$*" in\n${lines.join("\n")}\n  *) exit 1 ;;\nesac\n`;
+}
+
+export function originOnlyGitScript(originAction: string): string {
+  return gitCaseScript([['*" remote get-url origin"', originAction]]);
+}
+
+export function pullRequestGitScript(
+  overrides: Readonly<Record<string, string>> = {},
+): string {
+  const cases = new Map<string, string>([
+    ['*" config --get user.name"', 'printf "Repo User\\n"'],
+    ['*" config --get user.email"', 'printf "repo@example.com\\n"'],
+    ['*" remote get-url origin"', 'printf "git@github.com:octocat/hello-world.git\\n"'],
+    ['*" ls-remote origin refs/heads/*"', `printf "${OBJECT_ID_A}\\trefs/heads/feature\\n"`],
+    [
+      '*" ls-remote origin refs/pull/*/head refs/pull/*/merge"',
+      `printf "${OBJECT_ID_A}\\trefs/pull/12/head\\n${OBJECT_ID_B}\\trefs/pull/12/merge\\n"`,
+    ],
+    [`*" cat-file -e ${OBJECT_ID_A}"`, "exit 0"],
+    [`*" log -1 --format=%an %ae ${OBJECT_ID_A}"`, 'printf "Repo User repo@example.com\\n"'],
+  ]);
+  for (const [pattern, action] of Object.entries(overrides)) {
+    cases.set(pattern, action);
+  }
+  return gitCaseScript(cases);
+}
+
+export function installFakeGit(testDir: string, name: string, script: string): void {
+  const scriptPath = path.join(testDir, name);
+  writeFakeGitScript(scriptPath, script);
+  fs.chmodSync(scriptPath, 0o755);
+  process.env.TRIAGE_COMPANION_GIT = scriptPath;
+}
+
 export interface GitHubRepositoryDiscoveryTestContext {
   readonly defaultGit: string;
   readonly repoDir: string;

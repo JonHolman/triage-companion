@@ -1,4 +1,5 @@
 import { inlineErrorText } from "./commands/command-utils.ts";
+import { parseMenuKeys } from "./menu-keys.ts";
 import { pause } from "./menu-prompts.ts";
 import { buildMenuTree } from "./menu-tree.ts";
 import {
@@ -29,40 +30,25 @@ export function isMenuInterruptKey(key: MenuKey): boolean {
   return key.ctrl === true && key.name === "c";
 }
 
-function keyFromRawInput(input: string): MenuKey | null {
-  if (input.includes("\u0003")) {
-    return { ctrl: true, name: "c", sequence: "\u0003" };
-  }
-
-  if (input.includes("\u001b[A")) {
-    return { name: "up", sequence: input };
-  }
-  if (input.includes("\u001b[B")) {
-    return { name: "down", sequence: input };
-  }
-  if (input.includes("\u001b")) {
-    return { name: "escape", sequence: input };
-  }
-  if (input.includes("q")) {
-    return { name: "q", sequence: input };
-  }
-  if (input.includes("\r") || input.includes("\n")) {
-    return { name: "return", sequence: input };
-  }
-
-  return null;
-}
+const pendingKeys: MenuKey[] = [];
 
 function readMenuKey(): Promise<MenuKey> {
+  const queuedKey = pendingKeys.shift();
+  if (queuedKey) {
+    return Promise.resolve(queuedKey);
+  }
+
   return new Promise<MenuKey>((resolve) => {
     const onData = (chunk: Buffer | string): void => {
-      const key = keyFromRawInput(String(chunk));
-      if (key) {
-        resolve(key);
+      const keys = parseMenuKeys(String(chunk));
+      const key = keys[0];
+      if (!key) {
+        process.stdin.once("data", onData);
         return;
       }
 
-      process.stdin.once("data", onData);
+      pendingKeys.push(...keys.slice(1));
+      resolve(key);
     };
 
     process.stdin.once("data", onData);
@@ -152,7 +138,7 @@ async function openMenu(node: MenuNode): Promise<void> {
         continue;
       }
 
-      if (key.name === "escape" || key.name === "q" || key.sequence === "q") {
+      if (key.name === "escape" || key.name === "q") {
         done = true;
       }
     }

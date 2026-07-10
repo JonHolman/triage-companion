@@ -20,12 +20,12 @@ export interface SnykIssue {
   organizationID: string;
   organizationSlug: string;
   organizationName: string;
-  projectID: string | null;
+  projectID: string;
   projectName: string;
-  issueKey: string | null;
+  issueKey: string;
   packageName: string | null;
-  introducedAt: Date | null;
-  updatedAt: Date | null;
+  introducedAt: Date;
+  updatedAt: Date;
 }
 
 export interface SnykIssueSnapshot {

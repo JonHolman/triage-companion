@@ -34,6 +34,16 @@ export function parseSubjectURL(notification: GitHubNotificationApi): string | n
     return `https://github.com/${requireNotificationRepositoryFullName(notification, notificationId)}/security/dependabot`;
   }
 
+  if (subjectType === "CheckSuite") {
+    const notificationId = validateNotificationThreadID(String(notification.id));
+    return `https://github.com/${requireNotificationRepositoryFullName(notification, notificationId)}/actions`;
+  }
+
+  if (subjectType === "Discussion") {
+    const notificationId = validateNotificationThreadID(String(notification.id));
+    return `https://github.com/${requireNotificationRepositoryFullName(notification, notificationId)}/discussions`;
+  }
+
   if (subjectType === undefined) {
     throw new Error("GitHub notification missing subject type.");
   }
@@ -49,9 +59,6 @@ export function parseSubjectURL(notification: GitHubNotificationApi): string | n
   const url = validatedGitHubAPIURL(subject.url);
   if (url.search) {
     throw new Error("GitHub notification subject URL must not include query strings.");
-  }
-  if (subjectType === undefined) {
-    throw new Error("GitHub notification missing subject type.");
   }
 
   const parts = rawGitHubPathSegments(subject.url);
