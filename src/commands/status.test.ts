@@ -315,6 +315,25 @@ describe("status command", () => {
     assert.match(output, /Credential store is not valid JSON/);
   });
 
+  test("reports local configuration exceptions under Git instead of claiming availability", () => {
+    const deps: StatusDependencies = {
+      hasGitHubToken: () => false,
+      hasSnykToken: () => false,
+      hasJiraCredentials: () => false,
+      gitBinary: () => "/usr/bin/git",
+      credentialsPath: () => path.join(os.tmpdir(), "triage", "credentials.json"),
+      validationErrors: (serviceId) =>
+        serviceId === "local"
+          ? (() => { throw new Error("Credential store is not valid JSON"); })()
+          : [],
+    };
+
+    const output = stripAnsi(buildStatusReport(deps));
+
+    assert.match(output, /✗ Git: not available/);
+    assert.match(output, /Credential store is not valid JSON/);
+  });
+
   test("registers the status subcommand", () => {
     const program = new Command();
     const deps: StatusDependencies = {

@@ -53,7 +53,7 @@ export function isWorkflowRunResponse(value: unknown): value is WorkflowRunRespo
     isPositiveSafeIntegerValue(value.id) &&
     hasCanonicalTextValue(value.name) &&
     hasCanonicalTextValue(value.display_title) &&
-    (value.head_branch === undefined || hasCanonicalTextValue(value.head_branch)) &&
+    (value.head_branch === undefined || value.head_branch === null || hasCanonicalTextValue(value.head_branch)) &&
     hasCanonicalTextValue(value.status) &&
     hasCanonicalTextValue(value.conclusion) &&
     hasCanonicalTextValue(value.html_url) &&
@@ -102,7 +102,9 @@ export function isPullRequestDetailsResponse(value: unknown): value is Record<st
     isPullRequestState(value.state) &&
     typeof value.merged === "boolean" &&
     (value.state === "closed" || value.merged === false) &&
-    (value.user === undefined || (isRecord(value.user) && hasCanonicalTextValue(value.user.login)))
+    (value.user === undefined ||
+      value.user === null ||
+      (isRecord(value.user) && hasCanonicalTextValue(value.user.login)))
   );
 }
 
@@ -113,11 +115,13 @@ export function isCommitResponse(value: unknown): value is Record<string, unknow
 
   return (
     (value.author === undefined ||
+      value.author === null ||
       (isRecord(value.author) &&
         (value.author.login === undefined || hasCanonicalTextValue(value.author.login)))) &&
     (value.commit === undefined ||
       (isRecord(value.commit) &&
         (value.commit.author === undefined ||
+          value.commit.author === null ||
           (isRecord(value.commit.author) &&
             (value.commit.author.name === undefined || hasCanonicalTextValue(value.commit.author.name)) &&
             (value.commit.author.email === undefined || hasCanonicalTextValue(value.commit.author.email))))))

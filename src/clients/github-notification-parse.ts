@@ -124,10 +124,6 @@ export function parseSubjectDetailAPIURL(
   }
 
   const subjectType = subject.type;
-  if (subjectType === "RepositoryDependabotAlertsThread") {
-    return null;
-  }
-
   const subjectURL = subject.url;
   if (!subjectURL) {
     return null;

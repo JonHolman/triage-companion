@@ -60,7 +60,7 @@ export function gitSearchRootsList(value: string): string | null {
   if (value.trim().length === 0) {
     return "must be a JSON array of non-empty strings";
   }
-  if (value.trim().length > 0 && value.trim() !== value) {
+  if (value.trim() !== value) {
     return "must not include surrounding whitespace";
   }
 
@@ -217,10 +217,6 @@ export function hasUnsafeURLPathSegments(value: string): boolean {
 
   try {
     const parts = rawPath.split("/");
-    if (parts[0] !== "") {
-      return true;
-    }
-
     const hasTrailingSlash = parts[parts.length - 1] === "";
     const segments = hasTrailingSlash ? parts.slice(1, -1) : parts.slice(1);
     return segments.some((part) => {

@@ -75,6 +75,29 @@ describe("github security alerts", { concurrency: false }, () => {
     });
   });
 
+  test("rejects Dependabot pagination links whose path segments only appear in the query", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    let calls = 0;
+    const routes = routeHandler(new Map([
+      [DEPENDABOT_ALERTS_URL, () => jsonResponse([], {
+        headers: {
+          Link: "<https://api.github.com?state=open&per_page=100&after=/repos/octocat/hello-world/dependabot/alerts>; rel=\"next\"",
+        },
+      })],
+    ]));
+
+    await withMockFetch((input) => {
+      calls += 1;
+      return routes(input);
+    }, async () => {
+      await assert.rejects(
+        () => listSecurityAlerts(["octocat/hello-world"]),
+        /GitHub API pagination link must stay on the current API route/,
+      );
+      assert.equal(calls, 1);
+    });
+  });
+
   test("rejects Dependabot pagination links that change the API query", async () => {
     process.env.GITHUB_TOKEN = "github-env-token";
     let calls = 0;

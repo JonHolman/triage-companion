@@ -73,6 +73,18 @@ describeWithExecutableWrapper("git status output validation", { concurrency: fal
       expectedError: /Git status output paths must not include control characters/,
     },
     {
+      name: "rejects control character escapes after non-UTF-8 octal bytes in changed paths",
+      prefix: "git-status-path-latin1-then-control-root-",
+      status: "## main\n M \"caf\\351\\tname.ts\"",
+      expectedError: /Git status output paths must not include control characters/,
+    },
+    {
+      name: "rejects control octal escapes after non-UTF-8 octal bytes in changed paths",
+      prefix: "git-status-path-latin1-then-octal-control-root-",
+      status: "## main\n M \"caf\\351x\\001name.ts\"",
+      expectedError: /Git status output paths must not include control characters/,
+    },
+    {
       name: "rejects git status output with quoted UTF-8 encoded C1 control characters in changed paths",
       prefix: "git-status-path-escaped-utf8-c1-root-",
       status: "## main\n M \"src/file\\302\\205name.ts\"",

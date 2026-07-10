@@ -48,7 +48,7 @@ function runCli(args: string[]): void {
 
   if (result.status !== 0) {
     throw new MenuActionReportedError(
-      `triage-companion ${args.join(" ")} exited with status ${result.status ?? "unknown"}.`,
+      `triage-companion ${args.join(" ")} exited with status ${result.status}.`,
     );
   }
 }

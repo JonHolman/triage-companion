@@ -235,7 +235,7 @@ function validateNextPageToken(body: Record<string, unknown>): string | null {
 
     return null;
   }
-  if (typeof token !== "string" || !isTextValue(token)) {
+  if (!isTextValue(token)) {
     throw new Error("Jira search response nextPageToken must be non-empty text without surrounding whitespace or control characters.");
   }
 
@@ -255,7 +255,7 @@ async function jiraErrorMessage(response: Response): Promise<string> {
     }
 
     if (Object.hasOwn(body, "errorMessage")) {
-      return typeof body.errorMessage === "string" && isTextValue(body.errorMessage)
+      return isTextValue(body.errorMessage)
         ? body.errorMessage
         : "Jira API error response errorMessage must be non-empty text without surrounding whitespace or control characters.";
     }
@@ -354,7 +354,7 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
     }
 
     for (const issue of issueRecords) {
-      if (!("key" in issue) || issue.key === undefined) {
+      if (issue.key === undefined) {
         throw new Error("Jira API response included an issue without a key.");
       }
       if (typeof issue.key !== "string") {
@@ -369,7 +369,7 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
       if (!isIssueFieldsResponse(fields)) {
         throw new Error(`Jira API response issue ${key} fields must include valid top-level values.`);
       }
-      if ("resolution" in fields && fields.resolution !== null && fields.resolution !== undefined) {
+      if (fields.resolution !== null && fields.resolution !== undefined) {
         throw new Error(`Jira API response issue ${key} must be unresolved.`);
       }
 

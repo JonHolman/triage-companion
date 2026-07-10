@@ -159,6 +159,22 @@ describe("github pull request notification details", { concurrency: false }, () 
     });
   });
 
+  test("accepts pull request detail responses with a null user", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    const routes = routeHandler(new Map([
+      [notificationsUrl(1), () => jsonResponse([pullRequestNotification("Deleted author PR", {
+        reason: "author",
+        updated_at: "2026-01-01T00:00:00Z",
+      })])],
+      [pullDetailURL, () => jsonResponse({ state: "open", merged: false, user: null })],
+    ]));
+
+    await withMockFetch(routes, async () => {
+      const notifications = await listNotifications({ maxResults: 1 });
+      assert.equal(notifications.length, 1);
+    });
+  });
+
   test("rejects pull request detail responses missing author logins", async () => {
     process.env.GITHUB_TOKEN = "github-env-token";
     await expectPullDetailRejection({ state: "open", merged: false, user: {} });

@@ -30,7 +30,6 @@ export function isMenuInterruptKey(key: MenuKey): boolean {
   return key.ctrl === true && key.name === "c";
 }
 
-const pendingKeys: MenuKey[] = [];
 let pendingInput = "";
 
 // A bare ESC is ambiguous: it is either the Escape key or the first byte of
@@ -39,11 +38,6 @@ let pendingInput = "";
 export const ESCAPE_KEY_TIMEOUT_MS = 500;
 
 export function readMenuKey(): Promise<MenuKey> {
-  const queuedKey = pendingKeys.shift();
-  if (queuedKey) {
-    return Promise.resolve(queuedKey);
-  }
-
   return new Promise<MenuKey>((resolve) => {
     let escapeTimer: NodeJS.Timeout | undefined;
 
@@ -69,21 +63,31 @@ export function readMenuKey(): Promise<MenuKey> {
         escapeTimer = undefined;
       }
 
-      const { keys, remainder } = parseMenuInput(pendingInput + String(chunk));
-      pendingInput = remainder;
+      const { keys, remainder } = parseMenuInput(pendingInput + String(chunk), 1);
       const key = keys[0];
       if (!key) {
+        pendingInput = remainder;
         armEscapeTimer();
         process.stdin.once("data", onData);
         return;
       }
 
-      pendingKeys.push(...keys.slice(1));
+      pendingInput = "";
+      if (remainder) {
+        // Input typed ahead of the resolved key is parked on the paused
+        // stream so the next reader — another menu key read or a prompt —
+        // receives it instead of it being emitted to nobody and lost.
+        process.stdin.pause();
+        process.stdin.unshift(Buffer.from(remainder));
+      }
       resolve(key);
     };
 
     armEscapeTimer();
     process.stdin.once("data", onData);
+    // Prompts and parked type-ahead leave stdin explicitly paused, and a
+    // paused stream never delivers the next key.
+    process.stdin.resume();
   });
 }
 
@@ -120,14 +124,9 @@ export async function runMenuAction(item: MenuItem): Promise<void> {
 }
 
 async function openMenu(node: MenuNode): Promise<void> {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new Error("Interactive menu requires a TTY.");
-  }
-
   const wasRaw = Boolean(process.stdin.isRaw);
   const wasPaused = process.stdin.isPaused();
   process.stdin.setRawMode(true);
-  process.stdin.resume();
 
   let selected = 0;
   let done = false;

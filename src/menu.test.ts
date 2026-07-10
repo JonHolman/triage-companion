@@ -295,6 +295,14 @@ describe("readMenuKey stdin handling", { concurrency: false }, () => {
     assert.deepEqual(await secondKey, { name: "q", sequence: "q" });
   });
 
+  test("returns input typed ahead of the resolved key to stdin for the next reader", async () => {
+    const key = readMenuKey();
+    emitStdin("\r12345\r");
+
+    assert.deepEqual(await key, { name: "return", sequence: "\r" });
+    assert.equal(String(process.stdin.read() ?? ""), "12345\r");
+  });
+
   test("clears pending input after the escape timeout so it does not leak into the next read", async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout"] });
 

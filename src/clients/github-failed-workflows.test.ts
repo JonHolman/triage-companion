@@ -33,6 +33,21 @@ describe("github failed workflow runs", { concurrency: false }, () => {
     });
   });
 
+  test("accepts failed workflow runs with a null head_branch", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    const routes = routeHandler(new Map([
+      [workflowRunsUrl(5), () => jsonResponse({
+        workflow_runs: [workflowRunJson({ head_branch: null })],
+      })],
+    ]));
+
+    await withMockFetch(routes, async () => {
+      const runs = await listFailedWorkflowRuns(["octocat/hello-world"]);
+      assert.equal(runs.length, 1);
+      assert.equal(runs[0]?.branch, null);
+    });
+  });
+
   test("rejects failed workflow response entries with non-failure conclusions", async () => {
     process.env.GITHUB_TOKEN = "github-env-token";
     const routes = routeHandler(new Map([

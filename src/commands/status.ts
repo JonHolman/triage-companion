@@ -71,7 +71,15 @@ function validationErrorsFor(serviceId: ServiceId, deps: StatusDependencies): st
 }
 
 function localGitValidationErrors(deps: StatusDependencies): string[] {
-  return validationErrorsFor("local", deps).filter((error) => error.startsWith("Git search roots "));
+  let errors: string[];
+  try {
+    errors = deps.validationErrors?.("local") ?? [];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return [inlineErrorText(message)];
+  }
+
+  return errors.filter((error) => error.startsWith("Git search roots "));
 }
 
 function buildStatusItems(deps: StatusDependencies): ServiceStatus[] {

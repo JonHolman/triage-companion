@@ -72,6 +72,38 @@ support.describeWithExecutableWrapper("github.ts commit author resolution", { co
     );
   });
 
+  test("listMyOpenPullRequests accepts GitHub commit responses with a null author account", async () => {
+    support.installFakeGit(
+      context.testDir,
+      "git-missing-object-null-author",
+      missingObjectScript({ '*" fetch "*': "exit 99" }),
+    );
+
+    await withMockFetch(
+      routeHandler(
+        new Map([
+          [
+            COMMIT_URL,
+            () =>
+              support.jsonResponse({
+                author: null,
+                commit: { author: { name: "octocat", email: "octocat@example.com" } },
+              }),
+          ],
+        ]),
+      ),
+      async () => {
+        const result = await listMyOpenPullRequests({
+          repositoryPaths: [context.repoDir],
+          githubLogin: "octocat",
+        });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0]?.url, "https://github.com/octocat/hello-world/pull/12");
+      },
+    );
+  });
+
   test("listMyOpenPullRequests surfaces GitHub commit API failures when the local object is missing", async () => {
     await rejectsCommitResponse(
       "git-missing-object-api-failure",

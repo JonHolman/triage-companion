@@ -53,10 +53,6 @@ export function invalidStringCandidate(
   }
 
   for (const key of keys) {
-    if (!(key in value)) {
-      continue;
-    }
-
     const candidate = value[key];
     if (candidate === undefined) {
       continue;

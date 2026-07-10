@@ -13,11 +13,14 @@ export interface ParsedMenuInput {
 // A trailing escape sequence can be split across stdin chunks, so an
 // incomplete one (including a bare trailing ESC, which may be the first byte
 // of an arrow key) is returned as the remainder for the caller to carry over.
-export function parseMenuInput(input: string): ParsedMenuInput {
+// With a key limit, parsing stops once that many keys are found and the
+// unconsumed raw input is returned as the remainder, so type-ahead meant for
+// a later reader (such as a prompt) survives verbatim.
+export function parseMenuInput(input: string, limit = Number.POSITIVE_INFINITY): ParsedMenuInput {
   const keys: MenuKey[] = [];
   let index = 0;
 
-  while (index < input.length) {
+  while (index < input.length && keys.length < limit) {
     const character = input[index] ?? "";
 
     if (character === CTRL_C) {
@@ -92,5 +95,5 @@ export function parseMenuInput(input: string): ParsedMenuInput {
     index += 1;
   }
 
-  return { keys, remainder: "" };
+  return { keys, remainder: input.slice(index) };
 }

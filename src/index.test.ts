@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
@@ -49,6 +50,45 @@ function runEntryPointWithTTY(args: string[]): SpawnSyncReturns<string> {
   });
 }
 
+// Drives a full menu round trip in a real PTY: run an action, return through
+// the pause prompt, then navigate back out. Guards against stdin being left
+// paused after a prompt, which kills the key reader for the rest of the run.
+function runMenuActionRoundTripWithTTY(configDir: string): SpawnSyncReturns<string> {
+  const spawnCommand = [process.execPath, ENTRY_POINT, "menu"].map(toTclLiteral).join(" ");
+  const expectScript = [
+    "log_user 1",
+    "set timeout 10",
+    `spawn ${spawnCommand}`,
+    "expect \"*Use arrow keys and Enter*\"",
+    "after 100",
+    'send "\\033\\[B\\033\\[B\\033\\[B\\033\\[B\\033\\[B"',
+    "after 100",
+    'send "\\r"',
+    "expect \"*View configuration*\"",
+    "after 100",
+    'send "\\r"',
+    "expect \"*Press Enter to continue*\"",
+    "after 100",
+    'send "\\r"',
+    "expect \"*Use arrow keys and Enter*\"",
+    "after 100",
+    'send "q"',
+    "expect \"*Exit*\"",
+    "after 100",
+    'send "q"',
+    "expect eof",
+    "set waitResult [wait]",
+    'puts "exit:[lindex $waitResult 3]"',
+  ].join("; ");
+
+  return spawnSync("expect", ["-c", expectScript], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    timeout: 60_000,
+    env: { ...process.env, TRIAGE_COMPANION_CONFIG_DIR: configDir },
+  });
+}
+
 describe("cli entrypoint", () => {
   test("keeps the package entrypoints wired to src/index.ts", () => {
     const packageJSON = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
@@ -89,6 +129,24 @@ describe("cli entrypoint", () => {
     assert.match(output, /Use arrow keys and Enter/);
     assert.match(output, /exit:0/);
   });
+
+  test(
+    "keeps reading menu keys after an action and its pause prompt",
+    { skip: process.platform === "win32" },
+    (t) => {
+      const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-roundtrip-"));
+      t.after(() => fs.rmSync(configDir, { recursive: true, force: true }));
+
+      const result = runMenuActionRoundTripWithTTY(configDir);
+      const output = normalizeOutput(
+        `${result.stdout}${result.stderr}${result.error?.message ?? ""}`,
+      );
+
+      assert.equal(result.error, undefined);
+      assert.doesNotMatch(output, /Detected unsettled top-level await/);
+      assert.match(output, /exit:0/);
+    },
+  );
 
   test("requires a TTY for the explicit menu command", () => {
     const result = runEntryPoint(["menu"]);

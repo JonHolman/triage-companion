@@ -72,13 +72,12 @@ async function loadPullRequestSummary(
   repositoryURL: string,
   pullRequestNumberValue: number,
   token: string | null,
-): Promise<PullRequestSummary | null> {
+): Promise<PullRequestSummary> {
   const repositoryFullName = repositoryFullNameFromURL(repositoryURL);
   if (!repositoryFullName) {
-    return null;
-  }
-  if (!Number.isSafeInteger(pullRequestNumberValue) || pullRequestNumberValue <= 0) {
-    return null;
+    throw new Error(
+      `GitHub repository URL must include owner/repo to look up pull request #${pullRequestNumberValue}.`,
+    );
   }
 
   const response = await ghFetchWithErrorContext(
@@ -111,10 +110,10 @@ async function commitAuthorFromGitHub(
   repositoryURL: string,
   sha: string,
   token: string | null,
-): Promise<string | null> {
+): Promise<string> {
   const repositoryFullName = repositoryFullNameFromURL(repositoryURL);
   if (!repositoryFullName) {
-    return null;
+    throw new Error(`GitHub repository URL must include owner/repo to load commit ${sha}.`);
   }
 
   const response = await ghFetchWithErrorContext(
@@ -308,10 +307,10 @@ export async function listMyOpenPullRequests({
     if (!repositoryFullName) {
       continue;
     }
-    const pullRequestSummaryPromises = new Map<number, Promise<PullRequestSummary | null>>();
+    const pullRequestSummaryPromises = new Map<number, Promise<PullRequestSummary>>();
     const loadPullRequestSummaryIfNeeded = (
       pullRequestNumberValue: number,
-    ): Promise<PullRequestSummary | null> => {
+    ): Promise<PullRequestSummary> => {
       const existing = pullRequestSummaryPromises.get(pullRequestNumberValue);
       if (existing) {
         return existing;
@@ -357,7 +356,7 @@ export async function listMyOpenPullRequests({
       for (const candidatePullRequestNumber of candidatePullRequestNumbers) {
         if (requiresHeadRefDisambiguation) {
           const summary = await loadPullRequestSummaryIfNeeded(candidatePullRequestNumber);
-          if (summary?.state !== "open") {
+          if (summary.state !== "open") {
             continue;
           }
 
@@ -375,7 +374,7 @@ export async function listMyOpenPullRequests({
         }
 
         const summary = await loadPullRequestSummaryIfNeeded(candidatePullRequestNumber);
-        if (summary?.state === "open") {
+        if (summary.state === "open") {
           matchingPullRequestNumbers.push(candidatePullRequestNumber);
         }
       }

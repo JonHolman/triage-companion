@@ -142,7 +142,10 @@ function hasCStyleControlCharacterEscape(value: string): boolean {
     try {
       decoded = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(bytes));
     } catch {
-      return bytes.some((byte) => byte <= 0x1f || (byte >= 0x7f && byte <= 0x9f));
+      if (bytes.some((byte) => byte <= 0x1f || (byte >= 0x7f && byte <= 0x9f))) {
+        return true;
+      }
+      continue;
     }
     if (/[\u0000-\u001F\u007F-\u009F]/.test(decoded)) {
       return true;
@@ -172,9 +175,6 @@ function parseStatus(output: string): GitStatusSummary {
   let untracked = 0;
 
   for (const line of statusLines) {
-    if (line.length === 0) {
-      throw new Error("Git status output must not include blank status entries.");
-    }
     if (line.trim().length === 0) {
       throw new Error("Git status output must not include blank status entries.");
     }

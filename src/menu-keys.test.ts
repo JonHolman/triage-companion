@@ -117,4 +117,14 @@ describe("parseMenuInput", () => {
       remainder: "\u001b[",
     });
   });
+
+  test("stops at the key limit and returns unconsumed input verbatim", () => {
+    assert.deepEqual(parseMenuInput("\r12345\r", 1), {
+      keys: [{ name: "return", sequence: "\r" }],
+      remainder: "12345\r",
+    });
+    const arrows = parseMenuInput("\u001b[B\u001b[Bq", 1);
+    assert.deepEqual(arrows.keys, [{ name: "down", sequence: "\u001b[B" }]);
+    assert.deepEqual(arrows.remainder, "\u001b[Bq");
+  });
 });

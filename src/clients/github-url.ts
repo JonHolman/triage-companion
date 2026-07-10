@@ -77,8 +77,10 @@ function decodedRawURLPathSegments(value: string): string[] | null {
     return null;
   }
 
-  const pathStart = value.indexOf("/", schemeIndex + 2);
-  const pathAndSuffix = pathStart === -1 ? "/" : value.slice(pathStart);
+  const afterAuthority = value.slice(schemeIndex + 2);
+  const delimiter = /[/?#]/.exec(afterAuthority);
+  const pathAndSuffix =
+    delimiter === null || delimiter[0] !== "/" ? "/" : afterAuthority.slice(delimiter.index);
   const searchIndex = pathAndSuffix.indexOf("?");
   const hashIndex = pathAndSuffix.indexOf("#");
   const pathEndCandidates = [searchIndex, hashIndex].filter((index) => index >= 0);

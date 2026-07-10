@@ -90,7 +90,7 @@ export interface WorkflowRunResponse extends Record<string, unknown> {
   id: number;
   name: string;
   display_title: string;
-  head_branch?: string;
+  head_branch?: string | null;
   status: string;
   conclusion: string;
   html_url: string;

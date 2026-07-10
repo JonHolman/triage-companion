@@ -183,13 +183,11 @@ async function fetchPullRequestDetails(
         throw entry.reason instanceof Error ? entry.reason : new Error(String(entry.reason));
       }
 
-      if (entry.status === "fulfilled" && entry.value) {
-        detailsById.set(entry.value.id, {
-          state: entry.value.state,
-          merged: entry.value.merged,
-          author: entry.value.author,
-        });
-      }
+      detailsById.set(entry.value.id, {
+        state: entry.value.state,
+        merged: entry.value.merged,
+        author: entry.value.author,
+      });
     }
   }
 
@@ -266,9 +264,7 @@ async function fetchSubjectWebURLs(
         throw entry.reason instanceof Error ? entry.reason : new Error(inlineErrorText(String(entry.reason)));
       }
 
-      if (entry.value) {
-        subjectWebURLsById.set(entry.value.id, entry.value.webURL);
-      }
+      subjectWebURLsById.set(entry.value.id, entry.value.webURL);
     }
   }
 
