@@ -99,7 +99,17 @@ describe("github workflow run links", { concurrency: false }, () => {
       workflowRunJson({
         html_url: "https://github.com/octocat/hello-world/actions/runs/123?check_suite_focus=true",
       }),
-      /must not include query strings or fragments/,
+      /must not include query strings/,
+    );
+  });
+
+  test("rejects failed workflow links with fragments", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    await expectRunRejection(
+      workflowRunJson({
+        html_url: "https://github.com/octocat/hello-world/actions/runs/123#summary",
+      }),
+      /must not include fragments/,
     );
   });
 });

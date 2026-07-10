@@ -44,6 +44,11 @@ export function parseSubjectURL(notification: GitHubNotificationApi): string | n
     return `https://github.com/${requireNotificationRepositoryFullName(notification, notificationId)}/discussions`;
   }
 
+  if (subjectType === "RepositoryInvitation") {
+    const notificationId = validateNotificationThreadID(String(notification.id));
+    return `https://github.com/${requireNotificationRepositoryFullName(notification, notificationId)}/invitations`;
+  }
+
   if (subjectType === undefined) {
     throw new Error("GitHub notification missing subject type.");
   }

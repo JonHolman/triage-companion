@@ -195,8 +195,31 @@ describe("github notification subject details", { concurrency: false }, () => {
     await withMockFetch(routes, async () => {
       await assert.rejects(
         () => listNotifications({ maxResults: 1 }),
-        /GitHub notification 2 subject must not include query strings or fragments/,
+        /GitHub notification 2 subject must not include query strings/,
       );
+    });
+  });
+
+  test("accepts commit comment subject links whose html_url carries a fragment", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    const commentDetailURL = "https://api.github.com/repos/octocat/hello-world/comments/44";
+    const commentWebURL =
+      "https://github.com/octocat/hello-world/commit/6dcb09b5b57875f334f61aebed695e2e4193db5e#commitcomment-44";
+    const routes = routeHandler(new Map([
+      [notificationsUrl(1), () => jsonResponse([notificationJson({
+        id: "2",
+        subject: { type: "CommitComment", title: "New comment", url: commentDetailURL },
+        reason: "subscribed",
+        updated_at: "2026-01-01T00:00:00Z",
+      })])],
+      [commentDetailURL, () => jsonResponse({ html_url: commentWebURL })],
+    ]));
+
+    await withMockFetch(routes, async () => {
+      const notifications = await listNotifications({ maxResults: 1 });
+
+      assert.equal(notifications[0]?.subjectType, "CommitComment");
+      assert.equal(notifications[0]?.webURL, commentWebURL);
     });
   });
 });

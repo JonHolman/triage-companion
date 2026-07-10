@@ -339,9 +339,15 @@ export async function paginate(
       throw new Error("Snyk pagination link must stay on the current API route.");
     }
 
+    // Snyk returns links.next as a path relative to the REST base URL
+    // (e.g. "/orgs/..."), which URL resolution against the origin would
+    // strip the "/rest" base path from.
     let resolvedNextHref: string;
     try {
-      resolvedNextHref = new URL(nextHref, url).href;
+      resolvedNextHref =
+        nextHref.startsWith("/") && !nextHref.startsWith("//")
+          ? new URL(`${baseURL}${nextHref}`).href
+          : new URL(nextHref, url).href;
     } catch {
       throw new Error("Snyk pagination link must be a valid URL.");
     }

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 
 const MAX_CODE_LINES = 500;
-const CODE_EXTENSIONS = new Set([".ts", ".js", ".jsx", ".cjs", ".mjs", ".cts", ".mts"]);
+const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".cjs", ".mjs", ".cts", ".mts"]);
 const TYPESCRIPT_EXTENSIONS = new Set([".ts"]);
 const IGNORED_PREFIXES = ["node_modules/"];
 

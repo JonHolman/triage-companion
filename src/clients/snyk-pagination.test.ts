@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { listOpenIssues } from "./snyk.ts";
-import { withMockFetch } from "./fetch-mock-test-support.ts";
+import { routeHandler, withMockFetch } from "./fetch-mock-test-support.ts";
 import * as support from "./snyk-test-support.ts";
 
 const orgsURL = "https://api.snyk.io/rest/orgs?version=2024-10-15&limit=100";
@@ -24,6 +24,28 @@ async function expectPaginationRejection(next: unknown, expected: RegExp): Promi
 
 describe("snyk pagination", { concurrency: false }, () => {
   support.setupSnykClientTest();
+
+  test("follows base-relative Snyk pagination links to the next page", async () => {
+    process.env.SNYK_TOKEN = "token-123";
+    const secondOrg = { id: "org-2", attributes: { slug: "beta", name: "Beta" } };
+    const nextPath = "/orgs?version=2024-10-15&limit=100&starting_after=cursor-1";
+    const routes = support.snykRoutes({
+      projectsByOrg: { "org-1": [], "org-2": [] },
+      issuesByOrg: { "org-1": [], "org-2": [] },
+    });
+    routes.set(orgsURL, () =>
+      support.createResponse({ data: [support.acmeOrg], links: { next: nextPath } }),
+    );
+    routes.set(`https://api.snyk.io/rest${nextPath}`, () =>
+      support.createResponse({ data: [secondOrg] }),
+    );
+
+    await withMockFetch(routeHandler(routes), async () => {
+      const snapshot = await listOpenIssues();
+      assert.equal(snapshot.organizationCount, 2);
+      assert.deepEqual(snapshot.issues, []);
+    });
+  });
 
   test("rejects non-US pagination links", async () => {
     process.env.SNYK_TOKEN = "token-123";

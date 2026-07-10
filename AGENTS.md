@@ -7,5 +7,5 @@
 - The package binary is `triage-companion` and points at `src/index.ts`.
 - Do not print secret values. Credentials are persisted through `src/credential-store.ts`.
 - Keep Snyk API access on the supported US-hosted REST API base URLs.
-- Keep Git search defaults in `DEFAULT_SEARCH_ROOTS` in `src/config-model.ts`.
+- Keep Git search defaults in `DEFAULT_SEARCH_ROOTS` in `src/config-model-core.ts`.
 - Update `README.md` when user-facing CLI behavior changes.

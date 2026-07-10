@@ -28,6 +28,7 @@ describe("menu Jira actions", () => {
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback(answers.shift() ?? ""),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -91,6 +92,7 @@ describe("menu Jira actions", () => {
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback(answers.shift() ?? ""),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -170,6 +172,7 @@ describe("menu Jira actions", () => {
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback(answers.shift() ?? ""),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();

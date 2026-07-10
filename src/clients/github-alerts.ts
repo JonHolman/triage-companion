@@ -168,7 +168,7 @@ function parseAlertRecord(
     );
   }
   const vulnerableRange = stringField(vulnerability, "vulnerable_version_range");
-  if (vulnerableRange === undefined && hasPresentNonStringField(vulnerability, "vulnerable_version_range")) {
+  if (hasPresentNonStringField(vulnerability, "vulnerable_version_range")) {
     throw new Error(
       `Dependabot alert ${alertNumber} for ${encodedRepositoryName} vulnerable version range must be a string.`,
     );
@@ -179,7 +179,7 @@ function parseAlertRecord(
     );
   }
   const patchedVersionIdentifier = stringField(patchedVersion, "identifier");
-  if (patchedVersionIdentifier === undefined && hasPresentNonStringField(patchedVersion, "identifier")) {
+  if (hasPresentNonStringField(patchedVersion, "identifier")) {
     throw new Error(
       `Dependabot alert ${alertNumber} for ${encodedRepositoryName} patched version must be a string.`,
     );
@@ -190,7 +190,7 @@ function parseAlertRecord(
     );
   }
   const manifestPath = stringField(dependency, "manifest_path");
-  if (manifestPath === undefined && hasPresentNonStringField(dependency, "manifest_path")) {
+  if (hasPresentNonStringField(dependency, "manifest_path")) {
     throw new Error(
       `Dependabot alert ${alertNumber} for ${encodedRepositoryName} manifest path must be a string.`,
     );

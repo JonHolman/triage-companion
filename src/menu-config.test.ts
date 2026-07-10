@@ -115,6 +115,7 @@ describe("menu configuration actions", () => {
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback("[]"),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -172,6 +173,7 @@ describe("menu configuration actions", () => {
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback("   "),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -234,6 +236,7 @@ describe("menu configuration actions", () => {
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback("[]"),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -296,6 +299,7 @@ describe("menu configuration actions", () => {
       question: (_prompt: string, callback: (value: string) => void) =>
         callback(JSON.stringify([existing, missing])),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -353,6 +357,7 @@ describe("menu configuration actions", () => {
       question: (_prompt: string, callback: (value: string) => void) =>
         callback(JSON.stringify(["repos"])),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();
@@ -414,6 +419,7 @@ describe("menu configuration actions", () => {
       question: (_prompt: string, callback: (value: string) => void) =>
         callback(JSON.stringify([savedRoot])),
       close: () => undefined,
+      once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
     const menu = buildMenuTree();

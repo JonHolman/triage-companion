@@ -195,7 +195,17 @@ export function repositoryFullNameFromURL(repositoryURL: string): string | null 
   }
 }
 
-export function requireGitHubWebURL(value: string | null, context: string): string {
+export interface GitHubWebURLOptions {
+  // Notification subject html_url values legitimately carry fragments (for
+  // example commit comments always link to commit/<sha>#commitcomment-<id>).
+  allowFragment?: boolean;
+}
+
+export function requireGitHubWebURL(
+  value: string | null,
+  context: string,
+  { allowFragment = false }: GitHubWebURLOptions = {},
+): string {
   if (!value) {
     throw new Error(`${context} missing GitHub web URL.`);
   }
@@ -219,8 +229,11 @@ export function requireGitHubWebURL(value: string | null, context: string): stri
   if (url.username || url.password) {
     throw new Error(`${context} must not include credentials.`);
   }
-  if (url.search || url.hash) {
-    throw new Error(`${context} must not include query strings or fragments.`);
+  if (url.search) {
+    throw new Error(`${context} must not include query strings.`);
+  }
+  if (url.hash && !allowFragment) {
+    throw new Error(`${context} must not include fragments.`);
   }
 
   return url.href;
@@ -230,8 +243,9 @@ export function requireGitHubRepositoryWebURL(
   value: string | null,
   context: string,
   repositoryFullName: string,
+  options: GitHubWebURLOptions = {},
 ): string {
-  const href = requireGitHubWebURL(value, context);
+  const href = requireGitHubWebURL(value, context, options);
   const parts = value ? rawGitHubPathSegments(value) : null;
   if (!parts || parts.length < 2) {
     throw new Error(`${context} must include a GitHub owner/repo path.`);

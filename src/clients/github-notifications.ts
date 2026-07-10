@@ -255,6 +255,7 @@ async function fetchSubjectWebURLs(
             htmlURL,
             `GitHub notification ${id} subject`,
             repositoryFullName,
+            { allowFragment: true },
           ),
         };
       }),
@@ -311,6 +312,7 @@ export async function listNotifications({
       const webURL = requireGitHubWebURL(
         subjectURL,
         `GitHub notification ${String(notification.id)}`,
+        { allowFragment: true },
       );
       const reason = notification.reason;
       if (reason === undefined) {

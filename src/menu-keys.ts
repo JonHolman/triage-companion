@@ -1,11 +1,19 @@
 import type { MenuKey } from "./menu-types.ts";
 
 const CTRL_C = "\u0003";
-const ESCAPE = "\u001b";
+export const ESCAPE = "\u001b";
 const CSI_PARAMETER_BYTES = /[0-?]/;
 const CSI_INTERMEDIATE_BYTES = /[ -/]/;
 
-export function parseMenuKeys(input: string): MenuKey[] {
+export interface ParsedMenuInput {
+  readonly keys: MenuKey[];
+  readonly remainder: string;
+}
+
+// A trailing escape sequence can be split across stdin chunks, so an
+// incomplete one (including a bare trailing ESC, which may be the first byte
+// of an arrow key) is returned as the remainder for the caller to carry over.
+export function parseMenuInput(input: string): ParsedMenuInput {
   const keys: MenuKey[] = [];
   let index = 0;
 
@@ -21,6 +29,10 @@ export function parseMenuKeys(input: string): MenuKey[] {
     if (character === ESCAPE) {
       const next = input[index + 1];
 
+      if (next === undefined) {
+        return { keys, remainder: ESCAPE };
+      }
+
       if (next === "[") {
         let end = index + 2;
         while (end < input.length && CSI_PARAMETER_BYTES.test(input[end] ?? "")) {
@@ -30,7 +42,7 @@ export function parseMenuKeys(input: string): MenuKey[] {
           end += 1;
         }
         if (end >= input.length) {
-          break;
+          return { keys, remainder: input.slice(index) };
         }
 
         const sequence = input.slice(index, end + 1);
@@ -46,7 +58,7 @@ export function parseMenuKeys(input: string): MenuKey[] {
 
       if (next === "O") {
         if (index + 2 >= input.length) {
-          break;
+          return { keys, remainder: input.slice(index) };
         }
 
         const sequence = input.slice(index, index + 3);
@@ -80,5 +92,5 @@ export function parseMenuKeys(input: string): MenuKey[] {
     index += 1;
   }
 
-  return keys;
+  return { keys, remainder: "" };
 }

@@ -97,30 +97,54 @@ function validatePositiveIntegerOption(value: number, label: string): number {
   return value;
 }
 
+// Git octal-escapes every non-ASCII byte in quoted paths, so runs of octal
+// escapes are decoded as UTF-8 to distinguish multi-byte filename characters,
+// which are legitimate, from actual control characters.
 function hasCStyleControlCharacterEscape(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
+  let index = 0;
+
+  while (index < value.length) {
     if (value[index] !== "\\") {
+      index += 1;
       continue;
     }
 
     const escaped = value[index + 1] ?? "";
     if (escaped === "\\" || escaped === "\"") {
-      index += 1;
-      continue;
-    }
-
-    if (/^[0-7]$/.test(escaped)) {
-      const octalMatch = /^[0-7]{1,3}/.exec(value.slice(index + 1));
-      const octal = octalMatch?.[0] ?? "";
-      const code = Number.parseInt(octal, 8);
-      if ((code <= 0x1f) || (code >= 0x7f && code <= 0x9f)) {
-        return true;
-      }
-      index += octal.length;
+      index += 2;
       continue;
     }
 
     if (/^[abfnrtv]$/.test(escaped)) {
+      return true;
+    }
+
+    if (!/^[0-7]$/.test(escaped)) {
+      index += 1;
+      continue;
+    }
+
+    const bytes: number[] = [];
+    while (value[index] === "\\") {
+      const octalMatch = /^[0-7]{1,3}/.exec(value.slice(index + 1));
+      if (!octalMatch) {
+        break;
+      }
+      const code = Number.parseInt(octalMatch[0], 8);
+      if (code > 0xff) {
+        return true;
+      }
+      bytes.push(code);
+      index += 1 + octalMatch[0].length;
+    }
+
+    let decoded: string;
+    try {
+      decoded = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(bytes));
+    } catch {
+      return bytes.some((byte) => byte <= 0x1f || (byte >= 0x7f && byte <= 0x9f));
+    }
+    if (/[\u0000-\u001F\u007F-\u009F]/.test(decoded)) {
       return true;
     }
   }

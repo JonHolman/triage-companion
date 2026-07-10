@@ -2,6 +2,17 @@ import { Writable } from "node:stream";
 import readline from "node:readline";
 
 import { dim } from "./format.ts";
+import { MenuInterruptedError } from "./menu-types.ts";
+
+// Ctrl+C emits SIGINT on the interface and Ctrl+D closes it, neither of which
+// invokes the question callback, so both must settle the promise themselves.
+function askQuestion(rl: readline.Interface, text: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    rl.once("SIGINT", () => reject(new MenuInterruptedError()));
+    rl.once("close", () => resolve(""));
+    rl.question(text, resolve);
+  });
+}
 
 export async function prompt(text: string): Promise<string> {
   const wasRaw = Boolean(process.stdin.isTTY && process.stdin.isRaw);
@@ -14,16 +25,14 @@ export async function prompt(text: string): Promise<string> {
     output: process.stdout,
   });
 
-  const answer = await new Promise<string>((resolve) => {
-    rl.question(text, (value) => resolve(value));
-  });
-
-  rl.close();
-  if (process.stdin.isTTY && wasRaw) {
-    process.stdin.setRawMode(true);
+  try {
+    return await askQuestion(rl, text);
+  } finally {
+    rl.close();
+    if (process.stdin.isTTY && wasRaw) {
+      process.stdin.setRawMode(true);
+    }
   }
-
-  return answer;
 }
 
 export async function promptSecret(text: string): Promise<string> {
@@ -45,17 +54,15 @@ export async function promptSecret(text: string): Promise<string> {
     terminal: true,
   });
 
-  const answer = await new Promise<string>((resolve) => {
-    rl.question("", (value) => resolve(value));
-  });
-
-  rl.close();
-  process.stdout.write("\n");
-  if (process.stdin.isTTY && wasRaw) {
-    process.stdin.setRawMode(true);
+  try {
+    return await askQuestion(rl, "");
+  } finally {
+    rl.close();
+    process.stdout.write("\n");
+    if (process.stdin.isTTY && wasRaw) {
+      process.stdin.setRawMode(true);
+    }
   }
-
-  return answer;
 }
 
 export function pause(): Promise<void> {

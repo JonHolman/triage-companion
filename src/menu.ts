@@ -1,5 +1,5 @@
 import { inlineErrorText } from "./commands/command-utils.ts";
-import { parseMenuKeys } from "./menu-keys.ts";
+import { ESCAPE, parseMenuInput } from "./menu-keys.ts";
 import { pause } from "./menu-prompts.ts";
 import { buildMenuTree } from "./menu-tree.ts";
 import {
@@ -31,18 +31,49 @@ export function isMenuInterruptKey(key: MenuKey): boolean {
 }
 
 const pendingKeys: MenuKey[] = [];
+let pendingInput = "";
 
-function readMenuKey(): Promise<MenuKey> {
+// A bare ESC is ambiguous: it is either the Escape key or the first byte of
+// an arrow-key sequence split across stdin chunks. Only after this quiet
+// period is it treated as the Escape key.
+export const ESCAPE_KEY_TIMEOUT_MS = 500;
+
+export function readMenuKey(): Promise<MenuKey> {
   const queuedKey = pendingKeys.shift();
   if (queuedKey) {
     return Promise.resolve(queuedKey);
   }
 
   return new Promise<MenuKey>((resolve) => {
+    let escapeTimer: NodeJS.Timeout | undefined;
+
+    const armEscapeTimer = (): void => {
+      if (!pendingInput) {
+        return;
+      }
+
+      escapeTimer = setTimeout(() => {
+        escapeTimer = undefined;
+        const wasBareEscape = pendingInput === ESCAPE;
+        pendingInput = "";
+        if (wasBareEscape) {
+          process.stdin.removeListener("data", onData);
+          resolve({ name: "escape", sequence: ESCAPE });
+        }
+      }, ESCAPE_KEY_TIMEOUT_MS);
+    };
+
     const onData = (chunk: Buffer | string): void => {
-      const keys = parseMenuKeys(String(chunk));
+      if (escapeTimer) {
+        clearTimeout(escapeTimer);
+        escapeTimer = undefined;
+      }
+
+      const { keys, remainder } = parseMenuInput(pendingInput + String(chunk));
+      pendingInput = remainder;
       const key = keys[0];
       if (!key) {
+        armEscapeTimer();
         process.stdin.once("data", onData);
         return;
       }
@@ -51,6 +82,7 @@ function readMenuKey(): Promise<MenuKey> {
       resolve(key);
     };
 
+    armEscapeTimer();
     process.stdin.once("data", onData);
   });
 }
@@ -77,6 +109,9 @@ export async function runMenuAction(item: MenuItem): Promise<void> {
   } catch (error) {
     if (error instanceof MenuActionReportedError) {
       return;
+    }
+    if (error instanceof MenuInterruptedError) {
+      throw error;
     }
 
     const message = error instanceof Error ? error.message : String(error);

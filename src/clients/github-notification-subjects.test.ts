@@ -219,6 +219,26 @@ describe("github notification subjects", { concurrency: false }, () => {
     );
   });
 
+  test("links RepositoryInvitation notifications without subject URLs to the invitations page", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    await withMockFetch(
+      () => jsonResponse([
+        notificationJson({
+          id: "5",
+          subject: { type: "RepositoryInvitation", title: "Invitation to join octocat/hello-world", url: null },
+          reason: "invitation",
+          updated_at: "2026-01-01T00:00:00Z",
+        }),
+      ]),
+      async () => {
+        const notifications = await listNotifications({ maxResults: 1 });
+        assert.equal(notifications.length, 1);
+        assert.equal(notifications[0]?.subjectType, "RepositoryInvitation");
+        assert.equal(notifications[0]?.webURL, "https://github.com/octocat/hello-world/invitations");
+      },
+    );
+  });
+
   test("rejects notification subject API paths with extra path segments", async () => {
     process.env.GITHUB_TOKEN = "github-env-token";
     await withMockFetch(

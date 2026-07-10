@@ -73,6 +73,12 @@ describeWithExecutableWrapper("git status output validation", { concurrency: fal
       expectedError: /Git status output paths must not include control characters/,
     },
     {
+      name: "rejects git status output with quoted UTF-8 encoded C1 control characters in changed paths",
+      prefix: "git-status-path-escaped-utf8-c1-root-",
+      status: "## main\n M \"src/file\\302\\205name.ts\"",
+      expectedError: /Git status output paths must not include control characters/,
+    },
+    {
       name: "rejects git status output with blank status entries",
       prefix: "git-status-blank-entry-root-",
       status: "## main\n   ",
@@ -124,6 +130,38 @@ describeWithExecutableWrapper("git status output validation", { concurrency: fal
         assert.equal(result[0]?.branch, "wip]test");
         assert.equal(result[0]?.aheadCount, 2);
         assert.equal(result[0]?.behindCount, 1);
+      },
+    );
+  });
+
+  test("accepts git status output with quoted UTF-8 octal escapes for non-ASCII paths", () => {
+    withFakeGit(
+      "git-status-path-utf8-root-",
+      statusScriptFor("repo", "## main\n?? \"caf\\303\\251-\\342\\202\\254.txt\""),
+      (root) => {
+        const repo = path.join(root, "repo");
+        writeHeadFile(path.join(repo, ".git"));
+
+        const result = listDirtyRepositories({ maxResults: 10, searchRoots: [root] });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0]?.untrackedCount, 1);
+      },
+    );
+  });
+
+  test("accepts git status output with quoted non-UTF-8 non-control octal bytes", () => {
+    withFakeGit(
+      "git-status-path-latin1-root-",
+      statusScriptFor("repo", "## main\n?? \"caf\\351.txt\""),
+      (root) => {
+        const repo = path.join(root, "repo");
+        writeHeadFile(path.join(repo, ".git"));
+
+        const result = listDirtyRepositories({ maxResults: 10, searchRoots: [root] });
+
+        assert.equal(result.length, 1);
+        assert.equal(result[0]?.untrackedCount, 1);
       },
     );
   });

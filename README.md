@@ -330,7 +330,7 @@ Blank search queries are invalid.
 
 ## Development
 
-Run tests:
+Run tests (the interactive-menu test requires the `expect` binary on macOS/Linux, for example `apt-get install expect`):
 
 ```sh
 npm test
@@ -346,4 +346,10 @@ Run lint checks:
 
 ```sh
 npm run lint
+```
+
+Check source file length limits (CI enforces a 500-line maximum per code file):
+
+```sh
+npm run check:file-lines
 ```
