@@ -10,12 +10,20 @@ import {
 } from "../format.ts";
 import { ENV, getServiceDefinition } from "../config-model.ts";
 import { summarizeSeverities } from "../severity.ts";
-import { parseLimit, parseSearchRootsJSON, printSetupGuidance, printTokenPermissions, runCommand, textEnvOverrideState } from "./command-utils.ts";
+import {
+  parseLimit,
+  parseSearchRootsJSON,
+  printEnvOverrideMessage,
+  printSetupGuidance,
+  printTokenPermissions,
+  runCommand,
+  textEnvOverrideState,
+} from "./command-utils.ts";
 
 const githubService = getServiceDefinition("github");
 
-function rawNonBlankEnvValue(value: string | undefined | null): string | null {
-  if (value === undefined || value === null) {
+function rawNonBlankEnvValue(value: string | undefined): string | null {
+  if (value === undefined) {
     return null;
   }
 
@@ -47,12 +55,12 @@ export function register(program: Command): void {
       return runCommand("github remove-token", () => {
         github.removeToken();
         console.log("✓ GitHub token removed.");
-        const tokenState = textEnvOverrideState(process.env[ENV.GITHUB_TOKEN]);
-        if (tokenState === "invalid") {
-          console.log(dim(`${ENV.GITHUB_TOKEN} is still set but invalid, so GitHub commands will fail until it is fixed or unset.`));
-        } else if (tokenState === "valid") {
-          console.log(dim(`${ENV.GITHUB_TOKEN} still provides the effective GitHub token when set.`));
-        }
+        printEnvOverrideMessage(
+          ENV.GITHUB_TOKEN,
+          textEnvOverrideState(process.env[ENV.GITHUB_TOKEN]),
+          "GitHub commands",
+          `${ENV.GITHUB_TOKEN} still provides the effective GitHub token when set.`,
+        );
       });
     });
 
@@ -141,7 +149,7 @@ export function register(program: Command): void {
     .option("--json", "Output as JSON", false)
     .action(
       (
-        paths: string[] | undefined,
+        paths: string[],
         opts: {
           searchRoots?: string;
           authorRegex?: string;
@@ -154,7 +162,7 @@ export function register(program: Command): void {
             ? undefined
             : parseSearchRootsJSON(opts.searchRoots, "--search-roots");
           const pullRequests = await github.listMyOpenPullRequests({
-            repositoryPaths: paths && paths.length > 0 ? paths : undefined,
+            repositoryPaths: paths.length > 0 ? paths : undefined,
             searchRoots,
             authorRegex: opts.authorRegex ?? rawNonBlankEnvValue(process.env[ENV.GITHUB_PR_AUTHOR_REGEX]),
             githubLogin: opts.githubLogin ?? null,
@@ -197,9 +205,9 @@ export function register(program: Command): void {
     .description("List Dependabot security alerts from notification repositories")
     .argument("[repos...]", "Repository full names (owner/repo)")
     .option("--json", "Output as JSON", false)
-    .action((repos: string[] | undefined, opts: { json: boolean }) => {
+    .action((repos: string[], opts: { json: boolean }) => {
       return runCommand("github security-alerts", async () => {
-        let targetRepos = repos ?? [];
+        let targetRepos = repos;
         if (targetRepos.length === 0) {
           targetRepos = await github.listSecurityAlertNotificationRepositories();
           if (targetRepos.length === 0) {
@@ -253,10 +261,10 @@ export function register(program: Command): void {
     .argument("[repos...]", "Repository full names (owner/repo); defaults to the current GitHub clone")
     .option("--limit <n>", "Maximum failed runs to fetch per repository", "5")
     .option("--json", "Output as JSON", false)
-    .action((repos: string[] | undefined, opts: { limit: string; json: boolean }) => {
+    .action((repos: string[], opts: { limit: string; json: boolean }) => {
       return runCommand("github failed-workflows", async () => {
         const maxPerRepo = parseLimit(opts.limit, "--limit");
-        let targetRepos = repos ?? [];
+        let targetRepos = repos;
         if (targetRepos.length === 0) {
           const currentRepo = github.resolveCurrentRepositoryFullName();
           if (!currentRepo) {

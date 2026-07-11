@@ -8,6 +8,7 @@ async function expectIssueRejection(issue: unknown, expected: RegExp, severity?:
     {
       projectsByOrg: { "org-1": [] },
       issuesByOrg: { "org-1": [issue] },
+      severity,
     },
     async () => {
       await assert.rejects(() => listOpenIssues(severity ? { severity } : {}), expected);

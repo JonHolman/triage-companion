@@ -85,7 +85,7 @@ function writeValues(values: Record<string, string>): void {
   const tempPath = path.join(dir, `.secrets.${process.pid}.${randomUUID()}.tmp`);
   let fd: number | null = null;
   let createdTemp = false;
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   try {
     fd = fs.openSync(tempPath, "wx", 0o600);
     createdTemp = true;
@@ -130,7 +130,7 @@ function readRawEnvValue(name: string): string | null {
 export function read(service: string, account: string): string | null {
   const values = loadValues();
   const key = toStoreKey(service, account);
-  return Object.hasOwn(values, key) ? values[key] ?? null : null;
+  return Object.hasOwn(values, key) ? values[key] : null;
 }
 
 export function save(service: string, account: string, value: string): void {

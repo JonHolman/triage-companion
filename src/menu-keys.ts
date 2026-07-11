@@ -4,6 +4,7 @@ const CTRL_C = "\u0003";
 export const ESCAPE = "\u001b";
 const CSI_PARAMETER_BYTES = /[0-?]/;
 const CSI_INTERMEDIATE_BYTES = /[ -/]/;
+const CSI_FINAL_BYTES = /[@-~]/;
 
 export interface ParsedMenuInput {
   readonly keys: MenuKey[];
@@ -46,6 +47,15 @@ export function parseMenuInput(input: string, limit = Number.POSITIVE_INFINITY):
         }
         if (end >= input.length) {
           return { keys, remainder: input.slice(index) };
+        }
+
+        // A byte outside the CSI final range means the sequence is malformed
+        // (for example a dangling "ESC [" followed by Ctrl+C). The malformed
+        // prefix is dropped and the byte is left for the next iteration so a
+        // control key is never swallowed as a bogus terminator.
+        if (!CSI_FINAL_BYTES.test(input[end] ?? "")) {
+          index = end;
+          continue;
         }
 
         const sequence = input.slice(index, end + 1);

@@ -2,6 +2,7 @@ import path from "node:path";
 
 import { ENV } from "../config.ts";
 import {
+  DEFAULT_IGNORED_PR_BRANCHES,
   parseJSONStringArray,
   validateGitHubIgnoredBranchNames,
 } from "../config-model.ts";
@@ -59,27 +60,17 @@ import {
   invalidGitHubRemoteConfigurationMessage,
   isMissingLocalGitObjectError,
   isMissingRepositoryContextError,
-  remoteRepositoryURL,
+  remoteRepositoryFullName,
   validateRepositoryPath,
 } from "./github-remotes.ts";
-import {
-  repositoryFullNameFromURL,
-} from "./github-url.ts";
 
-const DEFAULT_IGNORED_PR_BRANCHES = new Set(["main", "master", "production"]);
+const DEFAULT_IGNORED_BRANCH_SET = new Set<string>(DEFAULT_IGNORED_PR_BRANCHES);
 
 async function loadPullRequestSummary(
-  repositoryURL: string,
+  repositoryFullName: string,
   pullRequestNumberValue: number,
   token: string | null,
 ): Promise<PullRequestSummary> {
-  const repositoryFullName = repositoryFullNameFromURL(repositoryURL);
-  if (!repositoryFullName) {
-    throw new Error(
-      `GitHub repository URL must include owner/repo to look up pull request #${pullRequestNumberValue}.`,
-    );
-  }
-
   const response = await ghFetchWithErrorContext(
     `https://${GITHUB_API_HOST}/repos/${repositoryFullName}/pulls/${pullRequestNumberValue}`,
     token,
@@ -107,15 +98,10 @@ async function loadPullRequestSummary(
 }
 
 async function commitAuthorFromGitHub(
-  repositoryURL: string,
+  repositoryFullName: string,
   sha: string,
   token: string | null,
 ): Promise<string> {
-  const repositoryFullName = repositoryFullNameFromURL(repositoryURL);
-  if (!repositoryFullName) {
-    throw new Error(`GitHub repository URL must include owner/repo to load commit ${sha}.`);
-  }
-
   const response = await ghFetchWithErrorContext(
     `https://${GITHUB_API_HOST}/repos/${repositoryFullName}/commits/${sha}`,
     token,
@@ -153,7 +139,7 @@ async function commitAuthorFromGitHub(
 
 function configuredIgnoredBranches(): Set<string> {
   if (trimEnvValue(process.env[ENV.GITHUB_PR_IGNORE_BRANCHES]) === null) {
-    return DEFAULT_IGNORED_PR_BRANCHES;
+    return DEFAULT_IGNORED_BRANCH_SET;
   }
 
   const raw = parseJSONStringArray(
@@ -225,15 +211,14 @@ export async function listMyOpenPullRequests({
   };
 
   const items: OpenPullRequest[] = [];
-  let missingAuthorIdentity = false;
 
   for (const repositoryPath of repos) {
     validateRepositoryPath(repositoryPath);
-    let remoteURL: string | null;
+    let resolvedFullName: string | null;
     try {
       const rawRemoteURL = runGitCommand(gitBinary, ["-C", repositoryPath, "remote", "get-url", "origin"]);
-      remoteURL = remoteRepositoryURL(rawRemoteURL);
-      if (!remoteURL) {
+      resolvedFullName = remoteRepositoryFullName(rawRemoteURL);
+      if (!resolvedFullName) {
         const invalidRemoteMessage = invalidGitHubRemoteConfigurationMessage(rawRemoteURL);
         if (invalidRemoteMessage) {
           throw new Error(invalidRemoteMessage);
@@ -247,13 +232,13 @@ export async function listMyOpenPullRequests({
       throw error;
     }
 
-    if (!remoteURL) {
+    if (!resolvedFullName) {
       continue;
     }
 
-    let branchRefs: GitHubRef[];
-    let pullRefs: GitHubRef[];
-    branchRefs = remoteRefs(
+    const repositoryFullName = resolvedFullName;
+    const repositoryURL = `https://github.com/${repositoryFullName}`;
+    const branchRefs: GitHubRef[] = remoteRefs(
       runGitCommand(gitBinary, [
         "-C",
         repositoryPath,
@@ -265,7 +250,7 @@ export async function listMyOpenPullRequests({
     for (const ref of branchRefs) {
       branchName(ref.ref);
     }
-    pullRefs = remoteRefs(
+    const pullRefs: GitHubRef[] = remoteRefs(
       runGitCommand(gitBinary, [
         "-C",
         repositoryPath,
@@ -303,10 +288,6 @@ export async function listMyOpenPullRequests({
       branchRefsBySHA.set(ref.sha, entries);
     }
 
-    const repositoryFullName = repositoryFullNameFromURL(remoteURL);
-    if (!repositoryFullName) {
-      continue;
-    }
     const pullRequestSummaryPromises = new Map<number, Promise<PullRequestSummary>>();
     const loadPullRequestSummaryIfNeeded = (
       pullRequestNumberValue: number,
@@ -317,7 +298,7 @@ export async function listMyOpenPullRequests({
       }
 
       const pending = loadPullRequestSummary(
-        remoteURL,
+        repositoryFullName,
         pullRequestNumberValue,
         resolveTokenIfNeeded(),
       );
@@ -393,8 +374,13 @@ export async function listMyOpenPullRequests({
           : null;
       }
       if (!authorPattern) {
-        missingAuthorIdentity = true;
-        break;
+        if (resolvedLoginError) {
+          throw resolvedLoginError;
+        }
+
+        throw new Error(
+          "Could not determine your git author identity. Set GITHUB_TOKEN so your GitHub login can be inferred, configure git user.name/user.email, or pass --github-login <login> / --author-regex <pattern>.",
+        );
       }
 
       let localObjectMissing = false;
@@ -410,7 +396,7 @@ export async function listMyOpenPullRequests({
 
       const author = localObjectMissing
         ? await commitAuthorFromGitHub(
-          remoteURL,
+          repositoryFullName,
           branchRef.sha,
           resolveTokenIfNeeded(),
         )
@@ -421,7 +407,7 @@ export async function listMyOpenPullRequests({
           "-1",
           "--format=%an %ae",
           branchRef.sha,
-        ]).replace(/[\r\n]+$/, "");
+        ]);
 
       if (!hasCanonicalTextValue(author)) {
         throw new Error(`Git commit ${branchRef.sha} in ${repositoryFullName} must include a valid author identity.`);
@@ -437,22 +423,12 @@ export async function listMyOpenPullRequests({
           repositoryName: path.basename(repositoryPath),
           branch,
           pullRequestNumber: matchingPullRequestNumber,
-          url: `${remoteURL}/pull/${matchingPullRequestNumber}`,
+          url: `${repositoryURL}/pull/${matchingPullRequestNumber}`,
           author,
           headSHA: branchRef.sha,
         });
       }
     }
-  }
-
-  if (missingAuthorIdentity) {
-    if (resolvedLoginError) {
-      throw resolvedLoginError;
-    }
-
-    throw new Error(
-      "Could not determine your git author identity. Set GITHUB_TOKEN so your GitHub login can be inferred, configure git user.name/user.email, or pass --github-login <login> / --author-regex <pattern>.",
-    );
   }
 
   return items.sort((left, right) => {

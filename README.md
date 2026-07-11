@@ -204,7 +204,7 @@ The built-in `DEFAULT_SEARCH_ROOTS` are:
 Only existing directories are used.
 Missing directories, empty values, and non-directory paths are ignored.
 Home-relative paths such as `~/repos` are supported.
-Unreadable directories under a search root make repository discovery fail instead of being skipped.
+Unreadable directories under a search root, including unreadable `.git` metadata, make repository discovery fail instead of being silently skipped.
 This keeps the defaults sensible across macOS, Linux, and Windows.
 
 You can override the defaults with `TRIAGE_COMPANION_GIT_SEARCH_ROOTS`.
@@ -247,7 +247,7 @@ Supported environment variables:
 - `HOME`: when used to derive the credentials base directory or expand `~/...` Git/search-root paths, it must not include surrounding whitespace or control characters; absolute override paths do not depend on `HOME`
 - `XDG_CONFIG_HOME` and `APPDATA`: when used to derive the credentials base directory, they must not include surrounding whitespace or control characters
 - `TRIAGE_COMPANION_SNYK_API_BASE_URL`: Snyk REST API base URL override; allowed US values are `https://api.snyk.io/rest` and `https://api.us.snyk.io/rest`
-- `TRIAGE_COMPANION_SNYK_ORGANIZATION_IDS`: comma-separated Snyk organization IDs to include, with no surrounding whitespace on each ID
+- `TRIAGE_COMPANION_SNYK_ORGANIZATION_IDS`: comma-separated Snyk organization IDs to include, with no surrounding whitespace on each ID; IDs that do not match an accessible organization make `snyk issues` fail instead of being silently ignored
 - `GITHUB_TOKEN`: GitHub token used when no token is persisted
 - `SNYK_TOKEN`: Snyk token used when no token is persisted
 - `JIRA_BASE_URL`: Jira base URL override
@@ -275,6 +275,7 @@ Commands with `--json` always emit JSON, including empty result sets.
 GitHub and Snyk commands that follow paginated API results fail if the API repeats a page link or returns an empty non-final page, instead of silently truncating the result set.
 GitHub pagination links with surrounding whitespace are rejected instead of being normalized into valid-looking API URLs.
 `snyk issues` also fails if the `status=open` API query returns a non-open issue row, instead of silently mixing it into the open-issues result set.
+`snyk issues --severity` passes the filter to the Snyk API and fails if the API returns an issue row outside the requested severity, instead of silently dropping it.
 GitHub `failed-workflows` and `security-alerts` also fail if GitHub returns items outside the requested `failure` or `open` filter, instead of silently dropping or misreporting them.
 `jira tickets` also fails if the unresolved-ticket query returns a resolved issue row, instead of silently mixing it into the open-ticket result set.
 GitHub `notifications` likewise fails if an unread-only fetch returns read notifications, instead of silently mixing them into the default unread view.
@@ -330,7 +331,7 @@ Blank search queries are invalid.
 
 ## Development
 
-Run tests (the interactive-menu test requires the `expect` binary on macOS/Linux, for example `apt-get install expect`):
+Run tests (the interactive-menu tests require the `expect` binary on macOS/Linux, for example `apt-get install expect`; they are skipped when it is not installed):
 
 ```sh
 npm test

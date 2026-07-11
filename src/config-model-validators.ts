@@ -196,17 +196,17 @@ export function normalizeSnykAPIBaseURL(value: string): string {
   }
 }
 
+// Backslashes count as path separators because the WHATWG URL parser treats
+// them that way in https URLs.
+const URL_PATH_SEPARATORS = /[/\\]/;
+
 export function hasUnsafeURLPathSegments(value: string): boolean {
   const schemeIndex = value.indexOf("://");
-  const pathAndSuffix = schemeIndex === -1
-    ? (() => {
-        const pathStart = value.indexOf("/");
-        return pathStart === -1 ? "/" : value.slice(pathStart);
-      })()
-    : (() => {
-        const pathStart = value.indexOf("/", schemeIndex + 3);
-        return pathStart === -1 ? "/" : value.slice(pathStart);
-      })();
+  const searchFrom = schemeIndex === -1 ? 0 : schemeIndex + 3;
+  const relativePathStart = value.slice(searchFrom).search(URL_PATH_SEPARATORS);
+  const pathAndSuffix = relativePathStart === -1
+    ? "/"
+    : value.slice(searchFrom + relativePathStart);
   const searchIndex = pathAndSuffix.indexOf("?");
   const hashIndex = pathAndSuffix.indexOf("#");
   const pathEndCandidates = [searchIndex, hashIndex].filter((index) => index >= 0);
@@ -216,7 +216,7 @@ export function hasUnsafeURLPathSegments(value: string): boolean {
   const rawPath = pathAndSuffix.slice(0, pathEnd);
 
   try {
-    const parts = rawPath.split("/");
+    const parts = rawPath.split(URL_PATH_SEPARATORS);
     const hasTrailingSlash = parts[parts.length - 1] === "";
     const segments = hasTrailingSlash ? parts.slice(1, -1) : parts.slice(1);
     return segments.some((part) => {

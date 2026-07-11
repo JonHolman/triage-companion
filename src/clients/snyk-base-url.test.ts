@@ -100,7 +100,7 @@ describe("snyk base url", { concurrency: false }, () => {
 
     await assert.rejects(
       () => listOpenIssues(),
-      /Snyk API base URL must be US-hosted/,
+      /Snyk API base URL must be one of the US REST API base URLs/,
     );
   });
 
@@ -116,7 +116,7 @@ describe("snyk base url", { concurrency: false }, () => {
 
     await assert.rejects(
       () => listOpenIssues(),
-      /Snyk API base URL must be US-hosted/,
+      /Snyk API base URL must be one of the US REST API base URLs/,
     );
   });
 
@@ -125,7 +125,7 @@ describe("snyk base url", { concurrency: false }, () => {
 
     await assert.rejects(
       () => listOpenIssues(),
-      /Snyk API base URL must be US-hosted/,
+      /Snyk API base URL must be one of the US REST API base URLs/,
     );
   });
 

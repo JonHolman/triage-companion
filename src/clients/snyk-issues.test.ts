@@ -71,7 +71,7 @@ describe("snyk issues", { concurrency: false }, () => {
     );
   });
 
-  test("skips severity-filtered issues before resolving project names", async () => {
+  test("requests severity-filtered issues server-side and rejects out-of-filter rows", async () => {
     process.env.SNYK_TOKEN = "token-123";
 
     await support.withSnykRoutes(
@@ -86,11 +86,13 @@ describe("snyk issues", { concurrency: false }, () => {
             }),
           ],
         },
+        severity: "high",
       },
       async () => {
-        const snapshot = await listOpenIssues({ severity: "high" });
-        assert.equal(snapshot.issues.length, 0);
-        assert.equal(snapshot.projectCount, 0);
+        await assert.rejects(
+          () => listOpenIssues({ severity: "high" }),
+          /Snyk issue issue-low must have severity high/,
+        );
       },
     );
   });

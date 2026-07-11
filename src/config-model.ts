@@ -17,6 +17,7 @@ export {
   hasUnsafeURLPathSegments,
   normalizeSnykAPIBaseURL,
   parseJSONStringArray,
+  usSnykAPIBaseURL,
   validateGitHubIgnoredBranchNames,
   validateGitSearchRootEntries,
   validateRegularExpression,
@@ -72,7 +73,7 @@ function resolveValue(field: ConfigFieldModel, context: ResolutionContext): Reso
 
   if (field.defaultValues?.length) {
     return {
-      value: field.defaultValues.join("\n"),
+      value: field.defaultValues.join(", "),
       source: "default",
     };
   }

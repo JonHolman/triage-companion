@@ -26,13 +26,12 @@ export function validateExplicitRepositoryPaths(repositoryPaths: readonly string
       throw new Error(`${pathLabel} is not a Git repository.`);
     }
 
-    const key = (() => {
-      try {
-        return fs.realpathSync(repositoryPath);
-      } catch {
-        return path.resolve(repositoryPath);
-      }
-    })();
+    let key: string;
+    try {
+      key = fs.realpathSync(repositoryPath);
+    } catch (error) {
+      throw new Error(`${pathLabel} could not be resolved.`, { cause: error });
+    }
 
     if (seen.has(key)) {
       continue;

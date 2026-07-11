@@ -37,7 +37,7 @@ function measureTable(
   for (const row of allRows) {
     for (let i = 0; i < row.length; i++) {
       const width = stripAnsi(String(row[i] ?? "")).length;
-      if (width > (widths[i] ?? 0)) {
+      if (width > widths[i]) {
         widths[i] = width;
       }
     }
@@ -81,8 +81,7 @@ export function dim(text: string): string {
 
 export function severityColor(severity: string, text: string): string {
   const key = normalizedKnownSeverity(severity);
-  const color = key ? SEVERITY_COLORS[key] ?? "" : "";
-  return color ? `${color}${text}${RESET}` : text;
+  return key ? `${SEVERITY_COLORS[key]}${text}${RESET}` : text;
 }
 
 export function table(rows: ReadonlyArray<ReadonlyArray<TableCell>>, { headers = [], indent = 0 }: TableOptions = {}): string {

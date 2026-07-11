@@ -6,7 +6,7 @@ import path from "node:path";
 import { Command } from "commander";
 
 import { register } from "./jira.ts";
-import { findCommand, optionLongNames, runRegisteredCommand } from "./test-support.test.ts";
+import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 import { hasCredentials, saveCredentials } from "../clients/jira.ts";
 import { resetCache } from "../credential-store.ts";
 

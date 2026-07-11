@@ -4,7 +4,7 @@ secrets.json
 .env.*
 !.env.example
 coverage/
-review-artifacts/
+review-artifacts
 *.log
 *.tmp
 .DS_Store

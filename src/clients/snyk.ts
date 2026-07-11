@@ -15,10 +15,8 @@ import {
 } from "./snyk-config.ts";
 import { paginate } from "./snyk-runtime.ts";
 import {
-  invalidStringCandidate,
   isRecord,
   parseDate,
-  pickString,
   requiredProjectID,
   snykIssueWebURL,
   validateAPIPathID,
@@ -51,24 +49,20 @@ function parseOrganization(org: { id?: string; attributes?: Record<string, unkno
   if (!organizationAttributes) {
     throw new Error(`Snyk organization ${organizationID} attributes must be an object.`);
   }
-  const organizationSlug = pickString(organizationAttributes, ["slug"]);
+  const organizationSlug = validatedStringCandidate(
+    organizationAttributes,
+    ["slug"],
+    `Snyk organization ${organizationID}`,
+  );
   if (!organizationSlug) {
-    const invalidOrganizationSlug = invalidStringCandidate(organizationAttributes, ["slug"]);
-    if (invalidOrganizationSlug) {
-      throw new Error(
-        `Snyk organization ${organizationID} ${invalidOrganizationSlug.key} ${invalidOrganizationSlug.reason}.`,
-      );
-    }
     throw new Error(`Snyk organization missing slug: ${organizationID}`);
   }
-  const organizationName = pickString(organizationAttributes, ["name"]);
+  const organizationName = validatedStringCandidate(
+    organizationAttributes,
+    ["name"],
+    `Snyk organization ${organizationID}`,
+  );
   if (!organizationName) {
-    const invalidOrganizationName = invalidStringCandidate(organizationAttributes, ["name"]);
-    if (invalidOrganizationName) {
-      throw new Error(
-        `Snyk organization ${organizationID} ${invalidOrganizationName.key} ${invalidOrganizationName.reason}.`,
-      );
-    }
     throw new Error(`Snyk organization missing name: ${organizationID}`);
   }
 
@@ -105,15 +99,16 @@ function filterOrganizations(
     return organizations;
   }
 
-  const allowed = new Set(filterIDs);
-  const filtered = organizations.filter((org) => allowed.has(org.id));
-  if (filtered.length === 0) {
+  const accessible = new Set(organizations.map((org) => org.id));
+  const unmatched = filterIDs.filter((id) => !accessible.has(id));
+  if (unmatched.length > 0) {
     throw new Error(
-      `No accessible orgs match TRIAGE_COMPANION_SNYK_ORGANIZATION_IDS: ${filterIDs.join(", ")}`,
+      `No accessible orgs match TRIAGE_COMPANION_SNYK_ORGANIZATION_IDS: ${unmatched.join(", ")}`,
     );
   }
 
-  return filtered;
+  const allowed = new Set(filterIDs);
+  return organizations.filter((org) => allowed.has(org.id));
 }
 
 function parseProjectName(project: { id?: string; attributes?: Record<string, unknown> }): [string, string] {
@@ -282,7 +277,7 @@ function parseIssue(
   projectNames: Map<string, string>,
   severity: string | undefined,
   baseURL: string,
-): SnykIssue | null {
+): SnykIssue {
   const rawIssueId = item.id;
   if (rawIssueId === undefined) {
     throw new Error("Snyk API response included an issue without an id.");
@@ -297,7 +292,7 @@ function parseIssue(
   const issueSeverity = validateIssueSeverity(attributes, issueId);
   const issueStatus = validateIssueStatus(attributes, issueId);
   if (severity && issueSeverity.toLowerCase() !== severity) {
-    return null;
+    throw new Error(`Snyk issue ${issueId} must have severity ${severity}.`);
   }
   const issueType = validatedStringCandidate(attributes, ["type"], `Snyk issue ${issueId}`);
   if (!issueType) {
@@ -374,6 +369,9 @@ export async function listOpenIssues({
       {
         status: "open",
         ignored: "false",
+        ...(validatedSeverity === undefined
+          ? {}
+          : { effective_severity_level: validatedSeverity }),
       },
       token,
       baseURL,
@@ -381,10 +379,6 @@ export async function listOpenIssues({
 
     for (const item of issueData) {
       const issue = parseIssue(item, org, projectNames, validatedSeverity, baseURL);
-      if (!issue) {
-        continue;
-      }
-
       issues.push(issue);
       projectKeys.add(`${org.id}#${issue.projectID}`);
     }

@@ -57,7 +57,7 @@ export function register(program: Command): void {
           if (repository.stagedCount > 0) changes.push(`${repository.stagedCount} staged`);
           if (repository.unstagedCount > 0) changes.push(`${repository.unstagedCount} modified`);
           if (repository.untrackedCount > 0) changes.push(`${repository.untrackedCount} untracked`);
-          const changeSummary = changes.join(", ") || `${repository.changedCount} changed`;
+          const changeSummary = changes.join(", ");
 
           const sync: string[] = [];
           if (repository.aheadCount > 0) sync.push(`↑${repository.aheadCount}`);

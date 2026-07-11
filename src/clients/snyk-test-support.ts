@@ -115,6 +115,7 @@ export interface SnykRoutesConfig {
   readonly projectsByOrg?: Readonly<Record<string, readonly unknown[]>>;
   readonly issuesByOrg?: Readonly<Record<string, readonly unknown[]>>;
   readonly baseURL?: string;
+  readonly severity?: string;
 }
 
 export function snykRoutes({
@@ -122,8 +123,12 @@ export function snykRoutes({
   projectsByOrg = {},
   issuesByOrg = {},
   baseURL = "https://api.snyk.io/rest",
+  severity,
 }: SnykRoutesConfig): Map<string, () => Response> {
   const query = "version=2024-10-15&limit=100";
+  const issueFilters = severity
+    ? `status=open&ignored=false&effective_severity_level=${severity}`
+    : "status=open&ignored=false";
   const routes = new Map<string, () => Response>([
     [`${baseURL}/orgs?${query}`, () => createResponse({ data: orgs })],
   ]);
@@ -132,7 +137,7 @@ export function snykRoutes({
   }
   for (const [orgID, issues] of Object.entries(issuesByOrg)) {
     routes.set(
-      `${baseURL}/orgs/${orgID}/issues?status=open&ignored=false&${query}`,
+      `${baseURL}/orgs/${orgID}/issues?${issueFilters}&${query}`,
       () => createResponse({ data: issues }),
     );
   }

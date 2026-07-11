@@ -46,6 +46,26 @@ export function parseSearchRootsJSON(value: string, label: string): string[] {
   return parseSearchRootsInput(value);
 }
 
+export function printEnvOverrideMessage(
+  envVar: string,
+  state: "missing" | "valid" | "invalid",
+  invalidSubject: string,
+  validMessage: string,
+): void {
+  if (state === "missing") {
+    return;
+  }
+
+  if (state === "invalid") {
+    console.log(
+      dim(`${envVar} is still set but invalid, so ${invalidSubject} will fail until it is fixed or unset.`),
+    );
+    return;
+  }
+
+  console.log(dim(validMessage));
+}
+
 export function printTokenPermissions(service: ServiceModel): void {
   console.log(dim("Required token permissions:"));
   for (const requirement of service.status.permissionRequirements) {

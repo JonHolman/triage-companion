@@ -14,27 +14,24 @@ import {
   normalizedKnownSeverity,
   summarizeSeverities,
 } from "../severity.ts";
-import { printSetupGuidance, printTokenPermissions, runCommand, textEnvOverrideState } from "./command-utils.ts";
+import {
+  printEnvOverrideMessage,
+  printSetupGuidance,
+  printTokenPermissions,
+  runCommand,
+  textEnvOverrideState,
+} from "./command-utils.ts";
 
 const snykService = getServiceDefinition("snyk");
 
 function printAPIBaseURLOverrideMessage(context: "saved" | "default"): void {
-  const state = snyk.apiBaseURLEnvOverrideState();
-  if (state === "missing") {
-    return;
-  }
-
-  if (state === "invalid") {
-    console.log(dim(`${ENV.SNYK_API_BASE_URL} is still set but invalid, so Snyk commands will fail until it is fixed or unset.`));
-    return;
-  }
-
-  console.log(
-    dim(
-      context === "saved"
-        ? `${ENV.SNYK_API_BASE_URL} still overrides the saved API base URL when set.`
-        : `${ENV.SNYK_API_BASE_URL} still overrides the US-01 default when set.`,
-    ),
+  printEnvOverrideMessage(
+    ENV.SNYK_API_BASE_URL,
+    snyk.apiBaseURLEnvOverrideState(),
+    "Snyk commands",
+    context === "saved"
+      ? `${ENV.SNYK_API_BASE_URL} still overrides the saved API base URL when set.`
+      : `${ENV.SNYK_API_BASE_URL} still overrides the US-01 default when set.`,
   );
 }
 
@@ -81,12 +78,12 @@ export function register(program: Command): void {
       return runCommand("snyk remove-token", () => {
         snyk.removeToken();
         console.log("✓ Snyk token removed.");
-        const tokenState = textEnvOverrideState(process.env.SNYK_TOKEN);
-        if (tokenState === "invalid") {
-          console.log(dim("SNYK_TOKEN is still set but invalid, so Snyk commands will fail until it is fixed or unset."));
-        } else if (tokenState === "valid") {
-          console.log(dim("SNYK_TOKEN still provides the effective Snyk token when set."));
-        }
+        printEnvOverrideMessage(
+          ENV.SNYK_TOKEN,
+          textEnvOverrideState(process.env[ENV.SNYK_TOKEN]),
+          "Snyk commands",
+          `${ENV.SNYK_TOKEN} still provides the effective Snyk token when set.`,
+        );
       });
     });
 

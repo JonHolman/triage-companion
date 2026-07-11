@@ -4,11 +4,10 @@ import {
   DEFAULT_SNYK_API_BASE_URL,
   getServiceDefinition,
   getServiceSetting,
-  hasUnsafeURLPathSegments,
   normalizeSnykAPIBaseURL,
   requiredSettingEnvVar,
   requiredSettingStorage,
-  US_SNYK_API_BASE_URLS,
+  usSnykAPIBaseURL,
 } from "../config-model.ts";
 import { KNOWN_SEVERITIES, normalizedKnownSeverity } from "../severity.ts";
 import { validateConfiguredText } from "../text.ts";
@@ -46,46 +45,23 @@ export function validateSeverityFilter(value: string | undefined): string | unde
   return normalized;
 }
 
+// The US-hosted allowlist lives in usSnykAPIBaseURL so config display and
+// request-time validation can never drift apart.
 function validateAPIBaseURL(value: string): string {
-  if (value.trim() !== value) {
-    throw new Error("Snyk API base URL must not include surrounding whitespace.");
-  }
-  if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
-    throw new Error("Snyk API base URL must not include control characters.");
-  }
-  if (hasUnsafeURLPathSegments(value)) {
-    throw new Error("Snyk API base URL must not include dot path segments.");
-  }
-  const baseURL = normalizeSnykAPIBaseURL(value);
-  let parsed: URL;
-  try {
-    parsed = new URL(baseURL);
-  } catch {
-    throw new Error("Snyk API base URL must be a valid https:// URL.");
-  }
-
-  if (parsed.username || parsed.password) {
-    throw new Error("Snyk API base URL must not include credentials.");
-  }
-  if (parsed.port) {
-    throw new Error("Snyk API base URL must not include a port.");
-  }
-
-  if (baseURL === "https://api.snykgov.io/rest") {
-    throw new Error("Snyk Gov requires OAuth and is not supported by this token-based client.");
-  }
-
-  if (!(US_SNYK_API_BASE_URLS as readonly string[]).includes(baseURL)) {
+  const validation = usSnykAPIBaseURL(value);
+  if (validation !== null) {
     throw new Error(
-      `Snyk API base URL must be US-hosted. Set ${ENV.SNYK_API_BASE_URL} to one of: ${US_SNYK_API_BASE_URLS.join(", ")}`,
+      validation.startsWith("Snyk Gov")
+        ? `${validation}.`
+        : `Snyk API base URL ${validation}.`,
     );
   }
 
-  return baseURL;
+  return normalizeSnykAPIBaseURL(value);
 }
 
-function rawNonBlankEnvValue(value: string | undefined | null): string | null {
-  if (value === undefined || value === null) {
+function rawNonBlankEnvValue(value: string | undefined): string | null {
+  if (value === undefined) {
     return null;
   }
 

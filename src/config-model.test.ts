@@ -255,7 +255,7 @@ describe("configuration model", () => {
     assert.equal(github.configured, true);
     assert.equal(github.values.authorRegex.source, "missing");
     assert.equal(github.values.ignoredBranches.source, "default");
-    assert.equal(github.values.ignoredBranches.value, "main\nmaster\nproduction");
+    assert.equal(github.values.ignoredBranches.value, "main, master, production");
 
     const snyk = resolveServiceState("snyk", {
       readEnv: (name) => name === "SNYK_TOKEN"
@@ -278,7 +278,7 @@ describe("configuration model", () => {
     });
     assert.equal(local.configured, true);
     assert.equal(local.values.searchRoots.source, "default");
-    assert.equal(local.values.searchRoots.value, DEFAULT_SEARCH_ROOTS.join("\n"));
+    assert.equal(local.values.searchRoots.value, DEFAULT_SEARCH_ROOTS.join(", "));
     assert.equal(local.values.configDirectory.source, "missing");
   });
 

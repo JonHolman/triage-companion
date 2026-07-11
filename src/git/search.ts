@@ -21,40 +21,71 @@ export interface GitDiscoveryOptions {
   maxDepth?: number;
 }
 
+// A path that does not exist (or has a non-directory component) is a normal
+// "not a repository" outcome. Any other failure, such as a permission error,
+// must fail discovery instead of silently skipping the repository.
+function isPathAbsenceError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+
+function metadataReadError(metadataPath: string, error: unknown): Error {
+  return new Error(`Could not read Git repository metadata ${inlineErrorText(metadataPath)}.`, {
+    cause: error,
+  });
+}
+
 function hasGitHeadFile(gitDirectory: string): boolean {
+  const headPath = path.join(gitDirectory, "HEAD");
   try {
-    return fs.statSync(path.join(gitDirectory, "HEAD")).isFile();
-  } catch {
-    return false;
+    return fs.statSync(headPath).isFile();
+  } catch (error) {
+    if (isPathAbsenceError(error)) {
+      return false;
+    }
+    throw metadataReadError(headPath, error);
   }
 }
 
 function resolvedGitDirectory(fullPath: string): string | null {
+  let stat: fs.Stats;
   try {
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      return hasGitHeadFile(fullPath) ? fullPath : null;
+    stat = fs.statSync(fullPath);
+  } catch (error) {
+    if (isPathAbsenceError(error)) {
+      return null;
     }
-    if (stat.isFile()) {
-      const content = fs.readFileSync(fullPath, "utf-8").replace(/(?:\r?\n)+$/, "");
-      if (!content.startsWith("gitdir: ")) {
-        return null;
-      }
+    throw metadataReadError(fullPath, error);
+  }
 
-      const rawGitDirectory = content.slice("gitdir: ".length);
-      if (!rawGitDirectory) {
-        return null;
-      }
-
-      const gitDirectory = path.isAbsolute(rawGitDirectory)
-        ? rawGitDirectory
-        : path.resolve(path.dirname(fullPath), rawGitDirectory);
-      return hasGitHeadFile(gitDirectory) ? gitDirectory : null;
-    }
-    return null;
-  } catch {
+  if (stat.isDirectory()) {
+    return hasGitHeadFile(fullPath) ? fullPath : null;
+  }
+  if (!stat.isFile()) {
     return null;
   }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(fullPath, "utf-8");
+  } catch (error) {
+    throw metadataReadError(fullPath, error);
+  }
+
+  content = content.replace(/(?:\r?\n)+$/, "");
+  if (!content.startsWith("gitdir: ")) {
+    return null;
+  }
+
+  const rawGitDirectory = content.slice("gitdir: ".length);
+  if (!rawGitDirectory) {
+    return null;
+  }
+
+  const gitDirectory = path.isAbsolute(rawGitDirectory)
+    ? rawGitDirectory
+    : path.resolve(path.dirname(fullPath), rawGitDirectory);
+  return hasGitHeadFile(gitDirectory) ? gitDirectory : null;
 }
 
 export function isGitRepositoryMetadataPath(fullPath: string): boolean {
@@ -68,8 +99,10 @@ export function resolveGitRepositoryMetadataPath(repositoryPath: string): string
 function canonicalPath(fullPath: string): string {
   try {
     return fs.realpathSync(fullPath);
-  } catch {
-    return path.resolve(fullPath);
+  } catch (error) {
+    throw new Error(`Could not resolve Git search path ${inlineErrorText(fullPath)}.`, {
+      cause: error,
+    });
   }
 }
 
@@ -84,8 +117,16 @@ function isTraversableDirectory(fullPath: string, entry: fs.Dirent): boolean {
 
   try {
     return fs.statSync(fullPath).isDirectory();
-  } catch {
-    return false;
+  } catch (error) {
+    // A broken symlink or a symlink loop is skipped like any other
+    // non-directory entry; other failures must fail discovery.
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ELOOP" || isPathAbsenceError(error)) {
+      return false;
+    }
+    throw new Error(`Could not read Git search directory ${inlineErrorText(fullPath)}.`, {
+      cause: error,
+    });
   }
 }
 
@@ -175,8 +216,13 @@ export function normalizeRepositorySearchRoots(searchRoots: readonly string[]): 
     .filter((root) => {
       try {
         return fs.statSync(root).isDirectory();
-      } catch {
-        return false;
+      } catch (error) {
+        if (isPathAbsenceError(error)) {
+          return false;
+        }
+        throw new Error(`Could not read Git search root ${inlineErrorText(root)}.`, {
+          cause: error,
+        });
       }
     });
 }

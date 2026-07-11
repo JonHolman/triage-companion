@@ -1,5 +1,13 @@
 import * as creds from "../credential-store.ts";
-import { inlineErrorText, isRecord, parseDate, validateConfiguredText } from "../text.ts";
+import {
+  hasCanonicalTextValue as isTextValue,
+  inlineErrorText,
+  isRecord,
+  parseDate,
+  recordField,
+  stringField,
+  validateConfiguredText,
+} from "../text.ts";
 import {
   getServiceDefinition,
   getServiceSetting,
@@ -112,25 +120,6 @@ export function removeCredentials(): void {
 
 function authHeader(email: string, token: string): string {
   return `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`;
-}
-
-function recordField(record: Record<string, unknown>, key: string): Record<string, unknown> | null {
-  const value = record[key];
-  return isRecord(value) ? value : null;
-}
-
-function stringField(record: Record<string, unknown> | null, key: string): string | undefined {
-  const value = record?.[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-function isTextValue(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.trim().length > 0 &&
-    value.trim() === value &&
-    !/[\u0000-\u001F\u007F-\u009F]/.test(value)
-  );
 }
 
 function isNamedFieldRecord(value: unknown): value is Record<string, unknown> {

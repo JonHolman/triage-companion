@@ -64,8 +64,7 @@ describe("menu", () => {
     assert.ok(labels.includes("View configuration"));
     assert.ok(labels.includes("Edit git search roots"));
     assert.ok(labels.includes("Reset git search roots"));
-    assert.ok(labels.includes("Set token"));
-    assert.ok(labels.includes("Replace token"));
+    assert.ok(labels.includes("Set or replace token"));
     assert.ok(labels.includes("Remove token"));
     assert.ok(labels.includes("Remove credentials"));
   });

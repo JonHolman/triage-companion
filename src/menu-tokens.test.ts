@@ -34,7 +34,7 @@ describe("menu token actions", () => {
 
     const menu = buildMenuTree();
     const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const setCredentials = jiraMenu?.items.find((item) => item.label === "Set credentials");
+    const setCredentials = jiraMenu?.items.find((item) => item.label === "Set or replace credentials");
 
     assert.ok(setCredentials?.action);
 
@@ -159,7 +159,7 @@ describe("menu token actions", () => {
 
     const menu = buildMenuTree();
     const githubMenu = menu.items.find((item) => item.label === "GitHub")?.submenu;
-    const setToken = githubMenu?.items.find((item) => item.label === "Set token");
+    const setToken = githubMenu?.items.find((item) => item.label === "Set or replace token");
 
     assert.ok(setToken?.action);
 
@@ -221,7 +221,7 @@ describe("menu token actions", () => {
 
     const menu = buildMenuTree();
     const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const setToken = snykMenu?.items.find((item) => item.label === "Set token");
+    const setToken = snykMenu?.items.find((item) => item.label === "Set or replace token");
 
     assert.ok(setToken?.action);
 

@@ -162,8 +162,11 @@ function describeResolvedFieldValue(
   value: string | null,
   source: string,
 ): string {
-  const validation = value !== null && source !== "default" ? field.validate?.(value) ?? null : null;
-  if (validation !== null && value !== null) {
+  if (source === "default" && field.defaultValues?.length) {
+    return field.defaultValues.join(", ");
+  }
+
+  if (value !== null && field.validate && field.validate(value) !== null) {
     if (
       field.secret ||
       value.trim().length === 0 ||

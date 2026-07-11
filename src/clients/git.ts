@@ -315,10 +315,6 @@ export function listDirtyRepositories({
     ? normalizedSearchRoots
     : resolveRepositorySearchRoots();
 
-  if (roots.length === 0) {
-    return [];
-  }
-
   const repoDirs = findGitRepositories(roots);
   if (repoDirs.length === 0) {
     return [];

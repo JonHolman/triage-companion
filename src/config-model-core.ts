@@ -9,6 +9,8 @@ export const DEFAULT_SEARCH_ROOTS = [
   "src",
 ] as const;
 
+export const DEFAULT_IGNORED_PR_BRANCHES = ["main", "master", "production"] as const;
+
 export const DEFAULT_SNYK_API_BASE_URL = "https://api.snyk.io/rest";
 export const US_SNYK_API_BASE_URLS = [
   DEFAULT_SNYK_API_BASE_URL,

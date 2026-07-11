@@ -30,8 +30,6 @@ export function isMenuInterruptKey(key: MenuKey): boolean {
   return key.ctrl === true && key.name === "c";
 }
 
-let pendingInput = "";
-
 // A bare ESC is ambiguous: it is either the Escape key or the first byte of
 // an arrow-key sequence split across stdin chunks. Only after this quiet
 // period is it treated as the Escape key.
@@ -39,6 +37,7 @@ export const ESCAPE_KEY_TIMEOUT_MS = 500;
 
 export function readMenuKey(): Promise<MenuKey> {
   return new Promise<MenuKey>((resolve) => {
+    let pendingInput = "";
     let escapeTimer: NodeJS.Timeout | undefined;
 
     const armEscapeTimer = (): void => {
@@ -83,7 +82,6 @@ export function readMenuKey(): Promise<MenuKey> {
       resolve(key);
     };
 
-    armEscapeTimer();
     process.stdin.once("data", onData);
     // Prompts and parked type-ahead leave stdin explicitly paused, and a
     // paused stream never delivers the next key.
@@ -124,8 +122,6 @@ export async function runMenuAction(item: MenuItem): Promise<void> {
 }
 
 async function openMenu(node: MenuNode): Promise<void> {
-  const wasRaw = Boolean(process.stdin.isRaw);
-  const wasPaused = process.stdin.isPaused();
   process.stdin.setRawMode(true);
 
   let selected = 0;
@@ -177,11 +173,7 @@ async function openMenu(node: MenuNode): Promise<void> {
       }
     }
   } finally {
-    process.stdin.setRawMode(wasRaw);
-    if (wasPaused) {
-      process.stdin.pause();
-      process.stdin.unref();
-    }
+    process.stdin.setRawMode(false);
   }
 }
 

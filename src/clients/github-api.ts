@@ -8,6 +8,7 @@ import type {
 } from "./github-types.ts";
 import {
   githubErrorMessage,
+  hasCanonicalTextValue,
   inlineErrorText,
   isRecord,
   parseGitHubJSON,
@@ -69,13 +70,13 @@ function stableGitHubPaginationQuery(url: URL): string {
   return params.toString();
 }
 
-export function gitHubPaginationLoopKey(value: string): string {
+function gitHubPaginationLoopKey(value: string): string {
   const url = validatedGitHubAPIURL(value);
   url.searchParams.sort();
   return url.href;
 }
 
-export function validateGitHubPaginationURL(value: string, currentValue: string): string {
+function validateGitHubPaginationURL(value: string, currentValue: string): string {
   const parsed = validatedGitHubAPIURL(value);
   const current = validatedGitHubAPIURL(currentValue);
   const path = rawGitHubPathSegments(value);
@@ -96,7 +97,7 @@ export function validateGitHubPaginationURL(value: string, currentValue: string)
   return parsed.href;
 }
 
-export function recordGitHubPaginationURL(
+function recordGitHubPaginationURL(
   seen: Set<string>,
   next: string,
   context: string,
@@ -109,7 +110,48 @@ export function recordGitHubPaginationURL(
   seen.add(nextKey);
 }
 
-export function nextURL(linkHeader: string | null): string | null {
+interface GitHubPage<T> {
+  items: T[];
+  itemCount: number;
+}
+
+// Shared Link-header pagination loop: stops at the limit, fails on repeated
+// pages and on empty non-final pages instead of silently truncating.
+export async function collectGitHubPaginatedItems<T>(
+  initialURL: string,
+  limit: number,
+  loadPage: (url: string) => Promise<{ response: Response; page: GitHubPage<T> }>,
+  { emptyPageMessage, paginationContext }: { emptyPageMessage: string; paginationContext: string },
+): Promise<T[]> {
+  let url = initialURL;
+  const seen = new Set<string>([gitHubPaginationLoopKey(url)]);
+  const items: T[] = [];
+
+  while (items.length < limit) {
+    const { response, page } = await loadPage(url);
+    items.push(...page.items);
+
+    if (items.length >= limit) {
+      break;
+    }
+
+    const rawNext = nextURL(response.headers.get("link"));
+    const next = rawNext ? validateGitHubPaginationURL(rawNext, url) : null;
+    if (!next) {
+      break;
+    }
+    if (page.itemCount === 0) {
+      throw new Error(emptyPageMessage);
+    }
+
+    recordGitHubPaginationURL(seen, next, paginationContext);
+    url = next;
+  }
+
+  return items.slice(0, limit);
+}
+
+function nextURL(linkHeader: string | null): string | null {
   if (!linkHeader) {
     return null;
   }
@@ -154,14 +196,10 @@ export async function resolveAuthenticatedLogin(): Promise<string | null> {
   if (login === undefined) {
     throw new Error("GitHub authenticated user response must include a login.");
   }
-  if (login.trim().length === 0) {
-    throw new Error("GitHub authenticated user response login must not be empty.");
-  }
-  if (/[\u0000-\u001F\u007F-\u009F]/.test(login)) {
-    throw new Error("GitHub authenticated user response login must not include control characters.");
-  }
-  if (login.trim() !== login) {
-    throw new Error("GitHub authenticated user response login must not include surrounding whitespace.");
+  if (!hasCanonicalTextValue(login)) {
+    throw new Error(
+      "GitHub authenticated user response login must be non-empty text without surrounding whitespace or control characters.",
+    );
   }
 
   return login;

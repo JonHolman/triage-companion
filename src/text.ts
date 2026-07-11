@@ -14,6 +14,31 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+export function recordField(
+  record: Record<string, unknown> | null,
+  key: string,
+): Record<string, unknown> | null {
+  const value = record?.[key];
+  return isRecord(value) ? value : null;
+}
+
+export function stringField(
+  record: Record<string, unknown> | null,
+  key: string,
+): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+export function hasCanonicalTextValue(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.trim() === value &&
+    !/[\u0000-\u001F\u007F-\u009F]/.test(value)
+  );
+}
+
 export function validateConfiguredText(value: string, label: string): string {
   if (value.trim().length === 0) {
     throw new Error(`${label} is required.`);

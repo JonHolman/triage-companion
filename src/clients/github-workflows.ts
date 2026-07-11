@@ -10,11 +10,8 @@ import type {
   WorkflowRunResponse,
 } from "./github-types.ts";
 import {
+  collectGitHubPaginatedItems,
   ghFetchWithErrorContext,
-  gitHubPaginationLoopKey,
-  nextURL,
-  recordGitHubPaginationURL,
-  validateGitHubPaginationURL,
 } from "./github-api.ts";
 import {
   githubErrorMessage,
@@ -83,64 +80,52 @@ async function listFailedWorkflowRunsForRepository(
   limit: number,
 ): Promise<FailedWorkflowRun[]> {
   const perPage = Math.min(limit, 100);
-  let url = `https://${GITHUB_API_HOST}/repos/${encodedRepositoryName}/actions/runs?status=failure&per_page=${perPage}`;
-  const seen = new Set<string>([gitHubPaginationLoopKey(url)]);
-  const repoRuns: FailedWorkflowRun[] = [];
+  return collectGitHubPaginatedItems<FailedWorkflowRun>(
+    `https://${GITHUB_API_HOST}/repos/${encodedRepositoryName}/actions/runs?status=failure&per_page=${perPage}`,
+    limit,
+    async (url) => {
+      const response = await ghFetchWithErrorContext(
+        url,
+        token,
+        `Could not fetch GitHub workflow runs for ${encodedRepositoryName}`,
+      );
+      if (!response.ok) {
+        const message = await githubErrorMessage(response);
+        throw new Error(`GitHub API HTTP ${response.status} for ${encodedRepositoryName}: ${message}`);
+      }
 
-  while (repoRuns.length < limit) {
-    const response = await ghFetchWithErrorContext(
-      url,
-      token,
-      `Could not fetch GitHub workflow runs for ${encodedRepositoryName}`,
-    );
-    if (!response.ok) {
-      const message = await githubErrorMessage(response);
-      throw new Error(`GitHub API HTTP ${response.status} for ${encodedRepositoryName}: ${message}`);
-    }
+      const payload = await parseGitHubJSON(
+        response,
+        `GitHub workflow runs response for ${encodedRepositoryName}`,
+      );
+      const workflowRunData = isRecord(payload) ? payload.workflow_runs : undefined;
+      if (!isRecord(payload) || !Array.isArray(workflowRunData)) {
+        throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} must include a workflow_runs array.`);
+      }
+      const workflowRunRecords = workflowRunData.filter(isRecord);
+      if (workflowRunRecords.length !== workflowRunData.length) {
+        throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} must contain workflow run objects.`);
+      }
+      const workflowRuns = workflowRunRecords.filter(
+        (run): run is WorkflowRunResponse => isWorkflowRunResponse(run),
+      );
+      if (workflowRuns.length !== workflowRunRecords.length) {
+        throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} must contain workflow run objects with valid top-level fields.`);
+      }
 
-    const payload = await parseGitHubJSON(
-      response,
-      `GitHub workflow runs response for ${encodedRepositoryName}`,
-    );
-    const workflowRunData = isRecord(payload) ? payload.workflow_runs : undefined;
-    if (!isRecord(payload) || !Array.isArray(workflowRunData)) {
-      throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} must include a workflow_runs array.`);
-    }
-    const workflowRunRecords = workflowRunData.filter(isRecord);
-    if (workflowRunRecords.length !== workflowRunData.length) {
-      throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} must contain workflow run objects.`);
-    }
-    const workflowRuns = workflowRunRecords.filter(
-      (run): run is WorkflowRunResponse => isWorkflowRunResponse(run),
-    );
-    if (workflowRuns.length !== workflowRunRecords.length) {
-      throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} must contain workflow run objects with valid top-level fields.`);
-    }
-
-    repoRuns.push(...workflowRuns.map((run) => parseWorkflowRun(run, encodedRepositoryName)));
-
-    if (repoRuns.length >= limit) {
-      break;
-    }
-
-    const rawNext = nextURL(response.headers.get("link"));
-    const next = rawNext ? validateGitHubPaginationURL(rawNext, url) : null;
-    if (!next) {
-      break;
-    }
-    if (workflowRunData.length === 0) {
-      throw new Error(`GitHub workflow runs response for ${encodedRepositoryName} returned an empty page before pagination finished.`);
-    }
-
-    recordGitHubPaginationURL(
-      seen,
-      next,
-      `GitHub workflow runs pagination for ${encodedRepositoryName}`,
-    );
-    url = next;
-  }
-
-  return repoRuns.slice(0, limit);
+      return {
+        response,
+        page: {
+          items: workflowRuns.map((run) => parseWorkflowRun(run, encodedRepositoryName)),
+          itemCount: workflowRunData.length,
+        },
+      };
+    },
+    {
+      emptyPageMessage: `GitHub workflow runs response for ${encodedRepositoryName} returned an empty page before pagination finished.`,
+      paginationContext: `GitHub workflow runs pagination for ${encodedRepositoryName}`,
+    },
+  );
 }
 
 export async function listFailedWorkflowRuns(

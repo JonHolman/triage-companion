@@ -179,6 +179,8 @@ export function validatePullRequestAPIURL(
   return parsed.href;
 }
 
+// Scheme-agnostic by design: repositoryFullNameFromRemoteURL delegates ssh://
+// remote URLs here for path extraction after validating the protocol itself.
 export function repositoryFullNameFromURL(repositoryURL: string): string | null {
   try {
     const url = new URL(repositoryURL);

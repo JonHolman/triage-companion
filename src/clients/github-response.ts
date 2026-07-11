@@ -1,9 +1,15 @@
 import {
   isPositiveSafeIntegerValue,
 } from "./github-url.ts";
-import { inlineErrorText, isRecord } from "../text.ts";
+import {
+  hasCanonicalTextValue,
+  inlineErrorText,
+  isRecord,
+  recordField,
+  stringField,
+} from "../text.ts";
 
-export { inlineErrorText, isRecord };
+export { hasCanonicalTextValue, inlineErrorText, isRecord, recordField, stringField };
 import type {
   GitHubNotificationApi,
   NotificationRepository,
@@ -11,15 +17,6 @@ import type {
   PullRequestSummaryResponse,
   WorkflowRunResponse,
 } from "./github-types.ts";
-
-export function hasCanonicalTextValue(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.trim().length > 0 &&
-    value.trim() === value &&
-    !/[\u0000-\u001F\u007F-\u009F]/.test(value)
-  );
-}
 
 export function isNotificationSubject(value: unknown): value is NotificationSubject {
   if (!isRecord(value)) {
@@ -147,16 +144,6 @@ export function hasPullRequestSubjectURL(
   notification: GitHubNotificationApi,
 ): notification is GitHubNotificationApi & { subject: NotificationSubject & { url: string } } {
   return notification.subject?.type === "PullRequest" && typeof notification.subject.url === "string";
-}
-
-export function recordField(record: Record<string, unknown> | null, key: string): Record<string, unknown> | null {
-  const value = record?.[key];
-  return isRecord(value) ? value : null;
-}
-
-export function stringField(record: Record<string, unknown> | null, key: string): string | undefined {
-  const value = record?.[key];
-  return typeof value === "string" ? value : undefined;
 }
 
 export function numberField(record: Record<string, unknown> | null, key: string): number | undefined {

@@ -1,4 +1,5 @@
 import {
+  DEFAULT_IGNORED_PR_BRANCHES,
   DEFAULT_SEARCH_ROOTS,
   DEFAULT_SNYK_API_BASE_URL,
   ENV,
@@ -103,7 +104,7 @@ const SERVICES: Record<ServiceId, ServiceModel> = {
         envVar: ENV.GITHUB_PR_IGNORE_BRANCHES,
         ignoreBlankEnvironmentValue: true,
         validate: gitHubIgnoredBranchList,
-        defaultValues: ["main", "master", "production"],
+        defaultValues: [...DEFAULT_IGNORED_PR_BRANCHES],
       },
     ],
   },

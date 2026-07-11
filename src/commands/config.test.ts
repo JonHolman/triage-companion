@@ -6,7 +6,7 @@ import path from "node:path";
 import { Command } from "commander";
 
 import { register } from "./config.ts";
-import { findCommand, runRegisteredCommand } from "./test-support.test.ts";
+import { findCommand, runRegisteredCommand } from "./command-test-support.ts";
 import { readSearchRootsConfig } from "../config.ts";
 import { resetCache } from "../credential-store.ts";
 

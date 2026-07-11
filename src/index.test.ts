@@ -50,6 +50,14 @@ function runEntryPointWithTTY(args: string[]): SpawnSyncReturns<string> {
   });
 }
 
+// The PTY tests need the expect binary (see README); when it is missing they
+// skip with that reason instead of failing on a confusing spawn ENOENT.
+const PTY_TEST_SKIP_REASON =
+  process.platform === "win32" ||
+  spawnSync("expect", ["-c", "exit 0"], { encoding: "utf8" }).error !== undefined
+    ? "requires a PTY driven by the expect binary"
+    : false;
+
 // Drives a full menu round trip in a real PTY: run an action, return through
 // the pause prompt, then navigate back out. Guards against stdin being left
 // paused after a prompt, which kills the key reader for the rest of the run.
@@ -118,7 +126,7 @@ describe("cli entrypoint", () => {
     assert.doesNotMatch(output, /Use arrow keys and Enter/);
   });
 
-  test("opens the menu on bare TTY invocation", { skip: process.platform === "win32" }, () => {
+  test("opens the menu on bare TTY invocation", { skip: PTY_TEST_SKIP_REASON }, () => {
     const result = runEntryPointWithTTY([]);
     const output = normalizeOutput(
       `${result.stdout}${result.stderr}${result.error?.message ?? ""}`,
@@ -132,7 +140,7 @@ describe("cli entrypoint", () => {
 
   test(
     "keeps reading menu keys after an action and its pause prompt",
-    { skip: process.platform === "win32" },
+    { skip: PTY_TEST_SKIP_REASON },
     (t) => {
       const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-roundtrip-"));
       t.after(() => fs.rmSync(configDir, { recursive: true, force: true }));

@@ -6,7 +6,7 @@ import path from "node:path";
 import { Command } from "commander";
 
 import { register } from "./git.ts";
-import { findCommand, optionLongNames, runRegisteredCommand } from "./test-support.test.ts";
+import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 
 async function runRegisteredCommandCapturingStderr(
   registerCommand: (program: Command) => void,

@@ -11,11 +11,8 @@ import type {
   PrDetails,
 } from "./github-types.ts";
 import {
+  collectGitHubPaginatedItems,
   ghFetchWithErrorContext,
-  gitHubPaginationLoopKey,
-  nextURL,
-  recordGitHubPaginationURL,
-  validateGitHubPaginationURL,
 } from "./github-api.ts";
 import {
   hasCanonicalTextValue,
@@ -69,62 +66,75 @@ async function fetchNotifications({
     per_page: String(perPage),
   });
 
-  let url = `https://${GITHUB_API_HOST}/notifications?${params}`;
-  const raw: GitHubNotificationApi[] = [];
-  const seen = new Set<string>([gitHubPaginationLoopKey(url)]);
-
-  while (raw.length < limit) {
-    const res = await ghFetchWithErrorContext(
-      url,
-      token,
-      "Could not fetch GitHub notifications",
-    );
-    if (res.status === 403) {
-      const sso = res.headers.get("x-github-sso");
-      if (sso?.includes("required")) {
-        const urlMatch = sso.match(/url=([^;]+)/);
-        throw new Error(
-          `SSO authorization required. Visit: ${inlineErrorText(urlMatch?.[1] || "(check GitHub settings)")}`,
-        );
+  const notifications = await collectGitHubPaginatedItems<GitHubNotificationApi>(
+    `https://${GITHUB_API_HOST}/notifications?${params}`,
+    limit,
+    async (url) => {
+      const res = await ghFetchWithErrorContext(
+        url,
+        token,
+        "Could not fetch GitHub notifications",
+      );
+      if (res.status === 403) {
+        const sso = res.headers.get("x-github-sso");
+        if (sso?.includes("required")) {
+          const urlMatch = sso.match(/url=([^;]+)/);
+          throw new Error(
+            `SSO authorization required. Visit: ${inlineErrorText(urlMatch?.[1] || "(check GitHub settings)")}`,
+          );
+        }
       }
-    }
 
-    if (!res.ok) {
-      throw new Error(`GitHub API HTTP ${res.status}: ${await githubErrorMessage(res)}`);
-    }
+      if (!res.ok) {
+        throw new Error(`GitHub API HTTP ${res.status}: ${await githubErrorMessage(res)}`);
+      }
 
-    const page = await parseGitHubJSON(res, "GitHub notifications response");
-    if (!Array.isArray(page)) {
-      throw new Error("GitHub notifications response must be an array.");
-    }
-    const notificationPage = page.filter(isNotificationResponse);
-    if (notificationPage.length !== page.length) {
-      throw new Error("GitHub notifications response entries must be objects with valid top-level fields.");
-    }
-    if (!includeRead && notificationPage.some((notification) => notification.unread === false)) {
-      throw new Error("GitHub notifications response returned a read notification despite all=false.");
-    }
+      const page = await parseGitHubJSON(res, "GitHub notifications response");
+      if (!Array.isArray(page)) {
+        throw new Error("GitHub notifications response must be an array.");
+      }
+      const notificationPage = page.filter(isNotificationResponse);
+      if (notificationPage.length !== page.length) {
+        throw new Error("GitHub notifications response entries must be objects with valid top-level fields.");
+      }
+      if (!includeRead && notificationPage.some((notification) => notification.unread === false)) {
+        throw new Error("GitHub notifications response returned a read notification despite all=false.");
+      }
 
-    raw.push(...notificationPage);
+      return { response: res, page: { items: notificationPage, itemCount: notificationPage.length } };
+    },
+    {
+      emptyPageMessage: "GitHub notifications response returned an empty page before pagination finished.",
+      paginationContext: "GitHub notifications pagination",
+    },
+  );
 
-    if (raw.length >= limit) {
-      break;
-    }
+  return { token, notifications };
+}
 
-    const rawNext = nextURL(res.headers.get("link"));
-    const next = rawNext ? validateGitHubPaginationURL(rawNext, url) : null;
-    if (!next) {
-      break;
-    }
-    if (notificationPage.length === 0) {
-      throw new Error("GitHub notifications response returned an empty page before pagination finished.");
-    }
+// Notification detail lookups fan out in small batches so one slow request
+// cannot stall the whole listing and one failure surfaces as the command
+// error instead of being swallowed.
+async function collectByIdInBatches<I, V>(
+  refs: readonly I[],
+  resolveRef: (ref: I) => Promise<{ id: string; value: V }>,
+): Promise<Map<string, V>> {
+  const byId = new Map<string, V>();
+  const BATCH = 8;
+  for (let index = 0; index < refs.length; index += BATCH) {
+    const resolved = await Promise.allSettled(refs.slice(index, index + BATCH).map(resolveRef));
+    for (const entry of resolved) {
+      if (entry.status === "rejected") {
+        throw entry.reason instanceof Error
+          ? entry.reason
+          : new Error(inlineErrorText(String(entry.reason)));
+      }
 
-    recordGitHubPaginationURL(seen, next, "GitHub notifications pagination");
-    url = next;
+      byId.set(entry.value.id, entry.value.value);
+    }
   }
 
-  return { token, notifications: raw.slice(0, limit) };
+  return byId;
 }
 
 async function fetchPullRequestDetails(
@@ -142,56 +152,37 @@ async function fetchPullRequestDetails(
       ),
     }));
 
-  const detailsById = new Map<string, PrDetails>();
-  const BATCH = 8;
-  for (let i = 0; i < pullRequestRefs.length; i += BATCH) {
-    const batch = pullRequestRefs.slice(i, i + BATCH);
-    const resolved = await Promise.allSettled(
-      batch.map(async ({ id, apiURL, repositoryFullName }) => {
-        const expectedRepositoryFullName = validateRepositoryFullName(repositoryFullName);
-        const response = await ghFetchWithErrorContext(
-          validatePullRequestAPIURL(apiURL, expectedRepositoryFullName),
-          token,
-          `Could not fetch notification pull request ${id}`,
-        );
-        if (!response.ok) {
-          throw new Error(
-            `GitHub API HTTP ${response.status} for notification pull request ${id}: ${await githubErrorMessage(response)}`,
-          );
-        }
-
-        const body = await parseGitHubJSON(response, "GitHub pull request details response");
-        if (!isRecord(body)) {
-          throw new Error("GitHub pull request details response must be an object.");
-        }
-        if (!isPullRequestDetailsResponse(body)) {
-          throw new Error("GitHub pull request details response must be an object with valid top-level fields.");
-        }
-
-        const user = recordField(body, "user");
-        return {
-          id,
-          state: body.state as string,
-          merged: body.merged as boolean,
-          author: stringField(user, "login") ?? null,
-        };
-      }),
+  return collectByIdInBatches(pullRequestRefs, async ({ id, apiURL, repositoryFullName }) => {
+    const expectedRepositoryFullName = validateRepositoryFullName(repositoryFullName);
+    const response = await ghFetchWithErrorContext(
+      validatePullRequestAPIURL(apiURL, expectedRepositoryFullName),
+      token,
+      `Could not fetch notification pull request ${id}`,
     );
-
-    for (const entry of resolved) {
-      if (entry.status === "rejected") {
-        throw entry.reason instanceof Error ? entry.reason : new Error(String(entry.reason));
-      }
-
-      detailsById.set(entry.value.id, {
-        state: entry.value.state,
-        merged: entry.value.merged,
-        author: entry.value.author,
-      });
+    if (!response.ok) {
+      throw new Error(
+        `GitHub API HTTP ${response.status} for notification pull request ${id}: ${await githubErrorMessage(response)}`,
+      );
     }
-  }
 
-  return detailsById;
+    const body = await parseGitHubJSON(response, "GitHub pull request details response");
+    if (!isRecord(body)) {
+      throw new Error("GitHub pull request details response must be an object.");
+    }
+    if (!isPullRequestDetailsResponse(body)) {
+      throw new Error("GitHub pull request details response must be an object with valid top-level fields.");
+    }
+
+    const user = recordField(body, "user");
+    return {
+      id,
+      value: {
+        state: body.state as string,
+        merged: body.merged as boolean,
+        author: stringField(user, "login") ?? null,
+      },
+    };
+  });
 }
 
 async function fetchSubjectWebURLs(
@@ -211,64 +202,47 @@ async function fetchSubjectWebURLs(
     })
     .filter((value): value is { id: string; apiURL: string; repositoryFullName: string } => value !== null);
 
-  const subjectWebURLsById = new Map<string, string>();
-  const BATCH = 8;
-  for (let i = 0; i < subjectDetailRefs.length; i += BATCH) {
-    const batch = subjectDetailRefs.slice(i, i + BATCH);
-    const resolved = await Promise.allSettled(
-      batch.map(async ({ id, apiURL, repositoryFullName }) => {
-        const response = await ghFetchWithErrorContext(
-          apiURL,
-          token,
-          `Could not fetch notification subject details ${id}`,
-        );
-        if (!response.ok) {
-          throw new Error(
-            `GitHub API HTTP ${response.status} for notification subject details ${id}: ${await githubErrorMessage(response)}`,
-          );
-        }
-
-        const body = await parseGitHubJSON(response, "GitHub notification subject details response");
-        if (!isRecord(body)) {
-          throw new Error("GitHub notification subject details response must be an object.");
-        }
-
-        const rawHtmlURL = body.html_url;
-        if (rawHtmlURL === undefined) {
-          throw new Error("GitHub notification subject details response must include an html_url.");
-        }
-        if (typeof rawHtmlURL !== "string") {
-          throw new Error("GitHub notification subject details response html_url must be a string.");
-        }
-        const htmlURL = rawHtmlURL;
-        if (!hasCanonicalTextValue(htmlURL)) {
-          throw new Error(
-            "GitHub notification subject details response html_url must not include surrounding whitespace.",
-          );
-        }
-
-        return {
-          id,
-          webURL: requireGitHubRepositoryWebURL(
-            htmlURL,
-            `GitHub notification ${id} subject`,
-            repositoryFullName,
-            { allowFragment: true },
-          ),
-        };
-      }),
+  return collectByIdInBatches(subjectDetailRefs, async ({ id, apiURL, repositoryFullName }) => {
+    const response = await ghFetchWithErrorContext(
+      apiURL,
+      token,
+      `Could not fetch notification subject details ${id}`,
     );
-
-    for (const entry of resolved) {
-      if (entry.status === "rejected") {
-        throw entry.reason instanceof Error ? entry.reason : new Error(inlineErrorText(String(entry.reason)));
-      }
-
-      subjectWebURLsById.set(entry.value.id, entry.value.webURL);
+    if (!response.ok) {
+      throw new Error(
+        `GitHub API HTTP ${response.status} for notification subject details ${id}: ${await githubErrorMessage(response)}`,
+      );
     }
-  }
 
-  return subjectWebURLsById;
+    const body = await parseGitHubJSON(response, "GitHub notification subject details response");
+    if (!isRecord(body)) {
+      throw new Error("GitHub notification subject details response must be an object.");
+    }
+
+    const rawHtmlURL = body.html_url;
+    if (rawHtmlURL === undefined) {
+      throw new Error("GitHub notification subject details response must include an html_url.");
+    }
+    if (typeof rawHtmlURL !== "string") {
+      throw new Error("GitHub notification subject details response html_url must be a string.");
+    }
+    const htmlURL = rawHtmlURL;
+    if (!hasCanonicalTextValue(htmlURL)) {
+      throw new Error(
+        "GitHub notification subject details response html_url must not include surrounding whitespace.",
+      );
+    }
+
+    return {
+      id,
+      value: requireGitHubRepositoryWebURL(
+        htmlURL,
+        `GitHub notification ${id} subject`,
+        repositoryFullName,
+        { allowFragment: true },
+      ),
+    };
+  });
 }
 
 export async function listNotifications({

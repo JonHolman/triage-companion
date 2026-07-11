@@ -326,7 +326,7 @@ export async function paginate(
 
     results.push(...records);
 
-    if ("links" in payload && payload.links !== undefined && !isRecord(payload.links)) {
+    if (payload.links !== undefined && !isRecord(payload.links)) {
       throw new Error("Snyk API response links must be an object.");
     }
     const links = recordField(payload, "links");

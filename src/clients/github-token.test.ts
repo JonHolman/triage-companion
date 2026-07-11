@@ -179,7 +179,7 @@ describe("github token and authenticated login", { concurrency: false }, () => {
     await withMockFetch(() => jsonResponse({ login: " octocat " }), async () => {
       await assert.rejects(
         () => resolveAuthenticatedLogin(),
-        /GitHub authenticated user response login must not include surrounding whitespace/,
+        /GitHub authenticated user response login must be non-empty text without surrounding whitespace or control characters/,
       );
     });
   });
@@ -189,7 +189,7 @@ describe("github token and authenticated login", { concurrency: false }, () => {
     await withMockFetch(() => jsonResponse({ login: "   " }), async () => {
       await assert.rejects(
         () => resolveAuthenticatedLogin(),
-        /GitHub authenticated user response login must not be empty/,
+        /GitHub authenticated user response login must be non-empty text without surrounding whitespace or control characters/,
       );
     });
   });
@@ -199,7 +199,7 @@ describe("github token and authenticated login", { concurrency: false }, () => {
     await withMockFetch(() => jsonResponse({ login: "octo\tcat" }), async () => {
       await assert.rejects(
         () => resolveAuthenticatedLogin(),
-        /GitHub authenticated user response login must not include control characters/,
+        /GitHub authenticated user response login must be non-empty text without surrounding whitespace or control characters/,
       );
     });
   });

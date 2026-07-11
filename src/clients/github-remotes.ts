@@ -7,34 +7,34 @@ import {
   validateRepositoryFullName,
 } from "./github-url.ts";
 
-export function remoteRepositoryURL(remoteURL: string): string | null {
-  const value = remoteURL.replace(/[\r\n]+$/, "");
+export function remoteRepositoryFullName(value: string): string | null {
   if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
     return null;
   }
   const lowerValue = value.toLowerCase();
 
   if (lowerValue.startsWith("git@github.com:")) {
-    const repositoryFullName = repositoryFullNameFromPath(
+    return repositoryFullNameFromPath(
       stripGitSuffix(value.slice("git@github.com:".length)),
     );
-    return repositoryFullName ? `https://github.com/${repositoryFullName}` : null;
   }
   if (lowerValue.startsWith("ssh://git@github.com/")) {
-    const repositoryFullName = repositoryFullNameFromPath(
+    return repositoryFullNameFromPath(
       stripGitSuffix(value.slice("ssh://git@github.com/".length)),
     );
-    return repositoryFullName ? `https://github.com/${repositoryFullName}` : null;
   }
   if (lowerValue.startsWith("ssh://git@github.com:")) {
-    const repositoryFullName = repositoryFullNameFromRemoteURL(value, "ssh:");
-    return repositoryFullName ? `https://github.com/${repositoryFullName}` : null;
+    return repositoryFullNameFromRemoteURL(value, "ssh:");
   }
   if (lowerValue.startsWith("https://")) {
-    const repositoryFullName = repositoryFullNameFromRemoteURL(value, "https:");
-    return repositoryFullName ? `https://github.com/${repositoryFullName}` : null;
+    return repositoryFullNameFromRemoteURL(value, "https:");
   }
   return null;
+}
+
+export function remoteRepositoryURL(remoteURL: string): string | null {
+  const repositoryFullName = remoteRepositoryFullName(remoteURL);
+  return repositoryFullName ? `https://github.com/${repositoryFullName}` : null;
 }
 
 export function validateRepositoryPath(repositoryPath: string): void {
@@ -48,25 +48,22 @@ function isGitHubRemoteCandidate(value: string): boolean {
   if (
     lowerValue.startsWith("git@github.com:") ||
     lowerValue.startsWith("ssh://git@github.com/") ||
-    lowerValue.startsWith("ssh://git@github.com:") ||
-    lowerValue.startsWith("https://")
+    lowerValue.startsWith("ssh://git@github.com:")
   ) {
-    try {
-      return new URL(stripGitSuffix(value)).hostname === "github.com";
-    } catch {
-      return (
-        lowerValue.startsWith("git@github.com:") ||
-        lowerValue.startsWith("ssh://git@github.com/") ||
-        lowerValue.startsWith("ssh://git@github.com:")
-      );
-    }
+    return true;
+  }
+  if (!lowerValue.startsWith("https://")) {
+    return false;
   }
 
-  return false;
+  try {
+    return new URL(stripGitSuffix(value)).hostname === "github.com";
+  } catch {
+    return false;
+  }
 }
 
-export function invalidGitHubRemoteConfigurationMessage(remoteURL: string): string | null {
-  const value = remoteURL.replace(/[\r\n]+$/, "");
+export function invalidGitHubRemoteConfigurationMessage(value: string): string | null {
   if (value.trim().length === 0) {
     return "Git remote origin URL must not be empty.";
   }
@@ -182,15 +179,15 @@ export function resolveCurrentRepositoryFullName(repositoryPath: string = proces
 
   try {
     const rawRemoteURL = runGitCommand(gitBinary, ["-C", repositoryPath, "remote", "get-url", "origin"]);
-    const remoteURL = remoteRepositoryURL(rawRemoteURL);
-    if (!remoteURL) {
+    const repositoryFullName = remoteRepositoryFullName(rawRemoteURL);
+    if (!repositoryFullName) {
       const invalidRemoteMessage = invalidGitHubRemoteConfigurationMessage(rawRemoteURL);
       if (invalidRemoteMessage) {
         throw new Error(invalidRemoteMessage);
       }
     }
 
-    return remoteURL ? repositoryFullNameFromURL(remoteURL) : null;
+    return repositoryFullName;
   } catch (error) {
     if (isMissingRepositoryContextError(error)) {
       return null;

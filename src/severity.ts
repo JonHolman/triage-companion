@@ -14,7 +14,7 @@ export function normalizedKnownSeverity(value: string): string | null {
 
 export function severityRank(value: string): number {
   const key = normalizedKnownSeverity(value);
-  return key ? SEVERITY_RANKS[key] ?? 0 : 0;
+  return key ? SEVERITY_RANKS[key] : 0;
 }
 
 export function summarizeSeverities(values: readonly string[]): string {
@@ -28,12 +28,12 @@ export function summarizeSeverities(values: readonly string[]): string {
   for (const value of values) {
     const key = normalizedKnownSeverity(value);
     if (key) {
-      counts[key] = (counts[key] ?? 0) + 1;
+      counts[key] += 1;
     }
   }
 
   return KNOWN_SEVERITIES
-    .map((level) => [level, counts[level] ?? 0] as const)
+    .map((level) => [level, counts[level]] as const)
     .filter(([, count]) => count > 0)
     .map(([level, count]) => `${count} ${level}`)
     .join(", ");

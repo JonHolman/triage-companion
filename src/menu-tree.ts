@@ -205,7 +205,7 @@ function removeSnykToken(): void {
 
 async function setSnykAPIBaseURL(): Promise<void> {
   printServiceSetup("snyk");
-  let current = "https://api.snyk.io/rest";
+  let current: string | null = null;
   try {
     current = snyk.currentAPIBaseURL();
   } catch (error) {
@@ -213,7 +213,7 @@ async function setSnykAPIBaseURL(): Promise<void> {
     console.log(dim(inlineErrorText(message)));
   }
 
-  const input = await prompt(`Snyk API base URL [${current}]: `);
+  const input = await prompt(`Snyk API base URL${current === null ? "" : ` [${current}]`}: `);
   if (!input) {
     return;
   }
@@ -378,8 +378,7 @@ export function buildMenuTree(): MenuNode {
                 runCli(["github", "failed-workflows", ...repos.split(/\s+/).filter(Boolean)]);
               },
             },
-            { label: "Set token", action: setGitHubToken },
-            { label: "Replace token", action: setGitHubToken },
+            { label: "Set or replace token", action: setGitHubToken },
             { label: "Remove token", action: removeGitHubToken },
             { label: "Back" },
           ],
@@ -394,8 +393,7 @@ export function buildMenuTree(): MenuNode {
             { label: "List issues by severity", action: listSnykIssuesBySeverity },
             { label: "Set API base URL", action: setSnykAPIBaseURL },
             { label: "Reset API base URL", action: resetSnykAPIBaseURL },
-            { label: "Set token", action: setSnykToken },
-            { label: "Replace token", action: setSnykToken },
+            { label: "Set or replace token", action: setSnykToken },
             { label: "Remove token", action: removeSnykToken },
             { label: "Back" },
           ],
@@ -407,8 +405,7 @@ export function buildMenuTree(): MenuNode {
           title: "Jira",
           items: [
             { label: "List tickets", action: () => runCli(["jira", "tickets"]) },
-            { label: "Set credentials", action: setJiraCredentials },
-            { label: "Replace credentials", action: setJiraCredentials },
+            { label: "Set or replace credentials", action: setJiraCredentials },
             { label: "Remove credentials", action: removeJiraCredentials },
             { label: "Back" },
           ],

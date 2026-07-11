@@ -15,11 +15,6 @@ function askQuestion(rl: readline.Interface, text: string): Promise<string> {
 }
 
 export async function prompt(text: string): Promise<string> {
-  const wasRaw = Boolean(process.stdin.isTTY && process.stdin.isRaw);
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(false);
-  }
-
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -29,18 +24,10 @@ export async function prompt(text: string): Promise<string> {
     return await askQuestion(rl, text);
   } finally {
     rl.close();
-    if (process.stdin.isTTY && wasRaw) {
-      process.stdin.setRawMode(true);
-    }
   }
 }
 
 export async function promptSecret(text: string): Promise<string> {
-  const wasRaw = Boolean(process.stdin.isTTY && process.stdin.isRaw);
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(false);
-  }
-
   process.stdout.write(text);
   const sink = new Writable({
     write(_chunk, _encoding, callback) {
@@ -59,9 +46,6 @@ export async function promptSecret(text: string): Promise<string> {
   } finally {
     rl.close();
     process.stdout.write("\n");
-    if (process.stdin.isTTY && wasRaw) {
-      process.stdin.setRawMode(true);
-    }
   }
 }
 

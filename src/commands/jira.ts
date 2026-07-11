@@ -4,27 +4,24 @@ import * as jira from "../clients/jira.ts";
 import { ENV } from "../config-model.ts";
 import { bold, dim, responsiveTable } from "../format.ts";
 import { getServiceDefinition } from "../config-model.ts";
-import { printSetupGuidance, printTokenPermissions, runCommand, textEnvOverrideState } from "./command-utils.ts";
+import {
+  printEnvOverrideMessage,
+  printSetupGuidance,
+  printTokenPermissions,
+  runCommand,
+  textEnvOverrideState,
+} from "./command-utils.ts";
 
 const jiraService = getServiceDefinition("jira");
 
 function printBaseURLOverrideMessage(context: "saved" | "effective"): void {
-  const state = jira.baseURLEnvOverrideState();
-  if (state === "missing") {
-    return;
-  }
-
-  if (state === "invalid") {
-    console.log(dim(`${ENV.JIRA_BASE_URL} is still set but invalid, so Jira commands will fail until it is fixed or unset.`));
-    return;
-  }
-
-  console.log(
-    dim(
-      context === "saved"
-        ? `${ENV.JIRA_BASE_URL} still overrides the saved Jira base URL when set.`
-        : `${ENV.JIRA_BASE_URL} still provides the effective Jira base URL when set.`,
-    ),
+  printEnvOverrideMessage(
+    ENV.JIRA_BASE_URL,
+    jira.baseURLEnvOverrideState(),
+    "Jira commands",
+    context === "saved"
+      ? `${ENV.JIRA_BASE_URL} still overrides the saved Jira base URL when set.`
+      : `${ENV.JIRA_BASE_URL} still provides the effective Jira base URL when set.`,
   );
 }
 
@@ -32,17 +29,12 @@ function printCredentialOverrideMessage(
   envVar: string,
   validMessage: string,
 ): void {
-  const state = textEnvOverrideState(process.env[envVar]);
-  if (state === "missing") {
-    return;
-  }
-
-  if (state === "invalid") {
-    console.log(dim(`${envVar} is still set but invalid, so Jira commands will fail until it is fixed or unset.`));
-    return;
-  }
-
-  console.log(dim(validMessage));
+  printEnvOverrideMessage(
+    envVar,
+    textEnvOverrideState(process.env[envVar]),
+    "Jira commands",
+    validMessage,
+  );
 }
 
 export function register(program: Command): void {

@@ -1,16 +1,8 @@
 import { snykAppOriginForAPIBaseURL } from "../config-model.ts";
-import { inlineErrorText, isRecord, parseDate } from "../text.ts";
+import { inlineErrorText, isRecord, parseDate, recordField } from "../text.ts";
 
-export { inlineErrorText, isRecord, parseDate };
+export { inlineErrorText, isRecord, parseDate, recordField };
 import type { SnykRecord } from "./snyk-types.ts";
-
-export function recordField(
-  record: Record<string, unknown>,
-  key: string,
-): Record<string, unknown> | null {
-  const value = record[key];
-  return isRecord(value) ? value : null;
-}
 
 export function isSnykRecord(value: unknown): value is SnykRecord {
   if (!isRecord(value)) {

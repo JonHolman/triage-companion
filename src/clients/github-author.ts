@@ -23,8 +23,7 @@ export function defaultAuthorPattern(
   const patterns: string[] = [];
   for (const key of ["user.name", "user.email"]) {
     try {
-      const rawValue = runGitCommand(gitBinary, ["-C", repositoryPath, "config", "--get", key]);
-      const value = rawValue.replace(/[\r\n]+$/, "");
+      const value = runGitCommand(gitBinary, ["-C", repositoryPath, "config", "--get", key]);
       if (!hasCanonicalTextValue(value)) {
         throw new Error(`Git config ${key} in ${repositoryPath} must include a valid value.`);
       }

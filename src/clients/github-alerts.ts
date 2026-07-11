@@ -13,11 +13,8 @@ import type {
   DependabotAlert,
 } from "./github-types.ts";
 import {
+  collectGitHubPaginatedItems,
   ghFetchWithErrorContext,
-  gitHubPaginationLoopKey,
-  nextURL,
-  recordGitHubPaginationURL,
-  validateGitHubPaginationURL,
 } from "./github-api.ts";
 import {
   githubErrorMessage,
@@ -65,13 +62,13 @@ function parseAlertRecord(
   const patchedVersion = recordField(vulnerability, "first_patched_version");
   const alertNumber = numberField(alert, "number");
   const htmlURL = stringField(alert, "html_url");
-  if (htmlURL !== undefined && !hasCanonicalTextValue(htmlURL)) {
+  if (!hasCanonicalTextValue(htmlURL)) {
     throw new Error(
       `Dependabot alert ${alertNumber} for ${encodedRepositoryName} html_url must not include surrounding whitespace.`,
     );
   }
   const url = requireDependabotAlertWebURL(
-    htmlURL ?? null,
+    htmlURL,
     `Dependabot alert for ${encodedRepositoryName}`,
     encodedRepositoryName,
     alertNumber,
@@ -221,60 +218,52 @@ async function listSecurityAlertsForRepository(
   limit: number,
 ): Promise<DependabotAlert[]> {
   const perPage = Math.min(limit, 100);
-  const repoAlerts: DependabotAlert[] = [];
-  let url = `https://${GITHUB_API_HOST}/repos/${encodedRepositoryName}/dependabot/alerts?state=open&per_page=${perPage}`;
-  const seen = new Set<string>([gitHubPaginationLoopKey(url)]);
-
-  while (repoAlerts.length < limit) {
-    const response = await ghFetchWithErrorContext(
-      url,
-      token,
-      `Could not fetch GitHub Dependabot alerts for ${encodedRepositoryName}`,
-    );
-
-    if (!response.ok) {
-      const message = await githubErrorMessage(response);
-      throw new Error(`GitHub API HTTP ${response.status} for ${encodedRepositoryName}: ${message}`);
-    }
-
-    const payload = await parseGitHubJSON(
-      response,
-      `GitHub Dependabot alerts response for ${encodedRepositoryName}`,
-    );
-    if (!Array.isArray(payload)) {
-      throw new Error(`GitHub Dependabot alerts response for ${encodedRepositoryName} must be an array.`);
-    }
-    const alertRecords = payload.filter(isRecord);
-    if (alertRecords.length !== payload.length) {
-      throw new Error(`GitHub Dependabot alerts response for ${encodedRepositoryName} must contain objects.`);
-    }
-    const alertPage = alertRecords.filter(isDependabotAlertResponse);
-    if (alertPage.length !== alertRecords.length) {
-      throw new Error(
-        `GitHub Dependabot alerts response for ${encodedRepositoryName} must contain alert objects with valid top-level fields.`,
+  return collectGitHubPaginatedItems<DependabotAlert>(
+    `https://${GITHUB_API_HOST}/repos/${encodedRepositoryName}/dependabot/alerts?state=open&per_page=${perPage}`,
+    limit,
+    async (url) => {
+      const response = await ghFetchWithErrorContext(
+        url,
+        token,
+        `Could not fetch GitHub Dependabot alerts for ${encodedRepositoryName}`,
       );
-    }
 
-    repoAlerts.push(...alertPage.map((alert) => parseAlertRecord(alert, encodedRepositoryName)));
+      if (!response.ok) {
+        const message = await githubErrorMessage(response);
+        throw new Error(`GitHub API HTTP ${response.status} for ${encodedRepositoryName}: ${message}`);
+      }
 
-    const rawNext = nextURL(response.headers.get("link"));
-    const next = rawNext ? validateGitHubPaginationURL(rawNext, url) : null;
-    if (!next) {
-      break;
-    }
-    if (payload.length === 0) {
-      throw new Error(`GitHub Dependabot alerts response for ${encodedRepositoryName} returned an empty page before pagination finished.`);
-    }
+      const payload = await parseGitHubJSON(
+        response,
+        `GitHub Dependabot alerts response for ${encodedRepositoryName}`,
+      );
+      if (!Array.isArray(payload)) {
+        throw new Error(`GitHub Dependabot alerts response for ${encodedRepositoryName} must be an array.`);
+      }
+      const alertRecords = payload.filter(isRecord);
+      if (alertRecords.length !== payload.length) {
+        throw new Error(`GitHub Dependabot alerts response for ${encodedRepositoryName} must contain objects.`);
+      }
+      const alertPage = alertRecords.filter(isDependabotAlertResponse);
+      if (alertPage.length !== alertRecords.length) {
+        throw new Error(
+          `GitHub Dependabot alerts response for ${encodedRepositoryName} must contain alert objects with valid top-level fields.`,
+        );
+      }
 
-    recordGitHubPaginationURL(
-      seen,
-      next,
-      `GitHub Dependabot alerts pagination for ${encodedRepositoryName}`,
-    );
-    url = next;
-  }
-
-  return repoAlerts.slice(0, limit);
+      return {
+        response,
+        page: {
+          items: alertPage.map((alert) => parseAlertRecord(alert, encodedRepositoryName)),
+          itemCount: payload.length,
+        },
+      };
+    },
+    {
+      emptyPageMessage: `GitHub Dependabot alerts response for ${encodedRepositoryName} returned an empty page before pagination finished.`,
+      paginationContext: `GitHub Dependabot alerts pagination for ${encodedRepositoryName}`,
+    },
+  );
 }
 
 export async function listSecurityAlerts(

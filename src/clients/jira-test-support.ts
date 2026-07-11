@@ -75,7 +75,7 @@ export function createResponse(body: unknown, status = 200): Response {
   });
 }
 
-export function issueFields(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function issueFields(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     summary: "Valid summary",
     issuetype: { name: "Task" },
@@ -93,7 +93,7 @@ export function searchIssue(
   return { key, fields: issueFields(fieldOverrides) };
 }
 
-export function searchPage(
+function searchPage(
   issues: unknown[],
   page: Record<string, unknown> = {},
 ): Record<string, unknown> {

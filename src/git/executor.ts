@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { ENV } from "../config.ts";
-import { expandHomePath, trimEnvValue } from "../config-path.ts";
+import { expandHomePath } from "../config-path.ts";
 
 const DEFAULT_GIT_COMMAND_TIMEOUT_MS = 5000;
 const GIT_VERSION_CHECK_TIMEOUT_MS = DEFAULT_GIT_COMMAND_TIMEOUT_MS;
@@ -56,40 +56,33 @@ export function resolveGitBinary(): string | null {
 
 export function requireGitBinary(): string {
   const configured = process.env[ENV.GIT_BINARY];
-  if (configured !== undefined) {
-    if (trimEnvValue(configured) === null) {
-      if (!isGitBinary("git")) {
-        throw new Error("Could not find git. Set TRIAGE_COMPANION_GIT or install git.");
-      }
-
-      return "git";
-    }
-    if (configured.trim() !== configured) {
-      throw new Error(`${ENV.GIT_BINARY} is invalid: must not include surrounding whitespace.`);
+  if (configured === undefined || configured.trim().length === 0) {
+    if (!isGitBinary("git")) {
+      throw new Error("Could not find git. Set TRIAGE_COMPANION_GIT or install git.");
     }
 
-    let expanded: string;
-    try {
-      expanded = expandHomePath(configured);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`${ENV.GIT_BINARY} is invalid: ${message}.`, {
-        cause: error,
-      });
-    }
-    const validationError = configuredGitBinaryValidationError(expanded);
-    if (validationError !== null) {
-      throw new Error(`${ENV.GIT_BINARY} is invalid: ${validationError}.`);
-    }
-
-    return expanded;
+    return "git";
   }
 
-  if (!isGitBinary("git")) {
-    throw new Error("Could not find git. Set TRIAGE_COMPANION_GIT or install git.");
+  if (configured.trim() !== configured) {
+    throw new Error(`${ENV.GIT_BINARY} is invalid: must not include surrounding whitespace.`);
   }
 
-  return "git";
+  let expanded: string;
+  try {
+    expanded = expandHomePath(configured);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${ENV.GIT_BINARY} is invalid: ${message}.`, {
+      cause: error,
+    });
+  }
+  const validationError = configuredGitBinaryValidationError(expanded);
+  if (validationError !== null) {
+    throw new Error(`${ENV.GIT_BINARY} is invalid: ${validationError}.`);
+  }
+
+  return expanded;
 }
 
 export function runGitCommand(

@@ -6,16 +6,18 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".cjs", ".mjs", "
 const TYPESCRIPT_EXTENSIONS = new Set([".ts"]);
 const IGNORED_PREFIXES = ["node_modules/"];
 
+// -z keeps paths raw (NUL-separated) so files with special characters are
+// still checked instead of arriving C-quoted and silently escaping the rules.
 function sourceControlledFiles(): string[] {
-  const output = execFileSync("git", ["ls-files"], {
+  const output = execFileSync("git", ["ls-files", "-z"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
+  const untracked = execFileSync("git", ["ls-files", "-z", "--others", "--exclude-standard"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  return [...output.split("\n"), ...untracked.split("\n")]
+  return [...output.split("\0"), ...untracked.split("\0")]
     .filter((file) => file && fs.existsSync(file))
     .sort();
 }

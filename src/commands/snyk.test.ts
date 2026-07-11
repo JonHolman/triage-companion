@@ -6,7 +6,7 @@ import path from "node:path";
 import { Command } from "commander";
 
 import { parseSeverityFilter, register } from "./snyk.ts";
-import { findCommand, optionLongNames, runRegisteredCommand } from "./test-support.test.ts";
+import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 import { currentAPIBaseURL, hasToken, saveToken } from "../clients/snyk.ts";
 import { resetCache } from "../credential-store.ts";
 
