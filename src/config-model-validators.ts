@@ -112,6 +112,22 @@ export function nonEmpty(value: string): string | null {
     : null;
 }
 
+export function atlassianCloudID(value: string): string | null {
+  if (value.trim().length === 0) {
+    return "must not be empty";
+  }
+  if (value.trim() !== value) {
+    return "must not include surrounding whitespace";
+  }
+  if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
+    return "must not include control characters";
+  }
+
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)
+    ? null
+    : "must be an Atlassian Cloud ID UUID";
+}
+
 export function validateRegularExpression(value: string): string | null {
   if (/[\u0000-\u001F\u007F-\u009F]/.test(value)) {
     return "must not include control characters";

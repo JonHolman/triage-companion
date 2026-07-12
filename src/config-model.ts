@@ -14,6 +14,7 @@ export {
   listServiceDefinitions,
 } from "./config-model-services.ts";
 export {
+  atlassianCloudID,
   hasUnsafeURLPathSegments,
   normalizeSnykAPIBaseURL,
   parseJSONStringArray,

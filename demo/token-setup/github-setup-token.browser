@@ -1,0 +1,7 @@
+open https://github.com/settings/tokens/new
+wait-for-text "New personal access token (classic)"
+fill "#oauth_access_description" "triage-companion setup demo"
+click ".js-new-default-token-expiration-select button"
+click ".js-new-default-token-expiration-item [data-value='7']"
+eval for (const scope of ['public_repo', 'security_events']) { const input = document.querySelector('input[value="' + scope + '"]'); if (!input) throw new Error('missing ' + scope); if (!input.checked) input.click(); }
+pdf github-setup-token-ready.pdf

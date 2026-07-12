@@ -24,7 +24,7 @@ npm start
 npm start -- github token <token>
 npm start -- snyk token <token>
 npm start -- snyk api-base-url https://api.us.snyk.io/rest
-npm start -- jira credentials https://your-company.atlassian.net user@your-company.com <token>
+npm start -- jira credentials https://your-company.atlassian.net user@your-company.com <token> [cloud-id]
 ```
 
 4. Check status.
@@ -170,19 +170,21 @@ Minimum permissions:
 Save Jira credentials with:
 
 ```sh
-triage-companion jira credentials https://your-company.atlassian.net user@your-company.com <token>
+triage-companion jira credentials https://your-company.atlassian.net user@your-company.com <token> [cloud-id]
 ```
 
 Use the site root from the browser address bar as the base URL.
 For example, if the browser shows `https://your-company.atlassian.net/browse/ABC-123`, the base URL is `https://your-company.atlassian.net`.
+For scoped Atlassian API tokens, also pass the site's Cloud ID. The CLI keeps the site URL for ticket links and calls Jira through `https://api.atlassian.com/ex/jira/{cloudId}` for API requests.
+You can retrieve the Cloud ID from `https://<your-company>.atlassian.net/_edge/tenant_info`.
 Do not include usernames, tokens, other credentials, control characters, or path dot segments like `/./` or `/../` in the Jira base URL.
 If USA-only residency is required, confirm the Atlassian site data residency policy with your site admin before saving Jira credentials.
-The base URL, email, and token are persisted locally after you save them.
-If `JIRA_BASE_URL`, `JIRA_EMAIL`, or `JIRA_API_TOKEN` is set, those environment overrides still take precedence over the saved Jira credentials.
+The base URL, email, token, and optional Cloud ID are persisted locally after you save them.
+If `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, or `JIRA_CLOUD_ID` is set, those environment overrides still take precedence over the saved Jira credentials.
 
 Minimum permissions:
 
-- `jira tickets`: Jira permissions `Browse Projects` and `View Issues` in the projects you want to query
+- `jira tickets`: Jira permissions `Browse Projects` and `View Issues` in the projects you want to query; scoped Atlassian API tokens also need the Jira read scopes for issue search
 
 ### Token permissions and feature requirements
 
@@ -253,6 +255,7 @@ Supported environment variables:
 - `JIRA_BASE_URL`: Jira base URL override
 - `JIRA_EMAIL`: Jira email override
 - `JIRA_API_TOKEN`: Jira API token override
+- `JIRA_CLOUD_ID`: optional Jira Cloud ID override for scoped Atlassian API tokens
 
 `github my-open-prs` uses local `git config user.name` and `user.email` as the branch author identity. If both values are unavailable, it uses the GitHub login inferred from the configured GitHub token when available.
 Persisted GitHub and Snyk tokens take precedence over their token environment variables.
@@ -307,7 +310,7 @@ triage-companion snyk remove-token
 triage-companion snyk issues [--severity high] [--json]
 triage-companion snyk api-base-url <url>
 triage-companion snyk reset-api-base-url
-triage-companion jira credentials https://your-company.atlassian.net user@your-company.com <token>
+triage-companion jira credentials https://your-company.atlassian.net user@your-company.com <token> [cloud-id]
 triage-companion jira remove-credentials
 triage-companion jira tickets [--json]
 triage-companion git dirty [--limit <n>] [--search <query>] [--json]

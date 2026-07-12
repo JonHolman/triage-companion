@@ -76,6 +76,24 @@ describe("jira credentials", { concurrency: false }, () => {
     assert.equal(hasCredentials(), false);
   });
 
+  test("rejects invalid Jira Cloud IDs", async () => {
+    assert.throws(
+      () => saveCredentials("https://example.atlassian.net", "dev@example.com", "token", "not-a-cloud-id"),
+      /Jira Cloud ID must be an Atlassian Cloud ID UUID/,
+    );
+
+    process.env.JIRA_BASE_URL = "https://env.atlassian.net";
+    process.env.JIRA_EMAIL = "env@example.com";
+    process.env.JIRA_API_TOKEN = "env-token";
+    process.env.JIRA_CLOUD_ID = "not-a-cloud-id";
+
+    await assert.rejects(
+      () => listOpenTickets(),
+      /Jira Cloud ID must be an Atlassian Cloud ID UUID/,
+    );
+    assert.equal(hasCredentials(), false);
+  });
+
   test("rejects Jira environment credentials with surrounding whitespace", async () => {
     process.env.JIRA_BASE_URL = "https://env.atlassian.net";
     process.env.JIRA_EMAIL = " dev@example.com ";
@@ -123,6 +141,39 @@ describe("jira credentials", { concurrency: false }, () => {
 
     try {
       assert.deepEqual(await listOpenTickets(), []);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("uses the Atlassian scoped-token API route when a Cloud ID is configured", async () => {
+    const originalFetch = global.fetch;
+    saveCredentials(
+      "https://stored.atlassian.net",
+      "stored@example.com",
+      "stored-token",
+      "11111111-2222-3333-4444-555555555555",
+    );
+
+    global.fetch = async (input: URL | Request | string, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const headers = init?.headers as Record<string, string>;
+
+      assert.equal(
+        url,
+        support.searchURL("https://api.atlassian.com/ex/jira/11111111-2222-3333-4444-555555555555"),
+      );
+      assert.equal(
+        headers.Authorization,
+        `Basic ${Buffer.from("stored@example.com:stored-token").toString("base64")}`,
+      );
+
+      return support.searchResponse([support.searchIssue("ABC-123")]);
+    };
+
+    try {
+      const tickets = await listOpenTickets();
+      assert.equal(tickets[0]?.url, "https://stored.atlassian.net/browse/ABC-123");
     } finally {
       global.fetch = originalFetch;
     }

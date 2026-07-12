@@ -8,12 +8,14 @@ import { Command } from "commander";
 import { register } from "./jira.ts";
 import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 import { hasCredentials, saveCredentials } from "../clients/jira.ts";
+import * as support from "../clients/jira-test-support.ts";
 import { resetCache } from "../credential-store.ts";
 
 let originalConfigDir: string | undefined;
 let originalBaseURL: string | undefined;
 let originalEmail: string | undefined;
 let originalToken: string | undefined;
+let originalCloudID: string | undefined;
 let testDir = "";
 
 beforeEach(() => {
@@ -21,11 +23,13 @@ beforeEach(() => {
   originalBaseURL = process.env.JIRA_BASE_URL;
   originalEmail = process.env.JIRA_EMAIL;
   originalToken = process.env.JIRA_API_TOKEN;
+  originalCloudID = process.env.JIRA_CLOUD_ID;
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-jira-command-"));
   process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
   delete process.env.JIRA_BASE_URL;
   delete process.env.JIRA_EMAIL;
   delete process.env.JIRA_API_TOKEN;
+  delete process.env.JIRA_CLOUD_ID;
   resetCache();
 });
 
@@ -53,6 +57,12 @@ afterEach(() => {
     delete process.env.JIRA_API_TOKEN;
   } else {
     process.env.JIRA_API_TOKEN = originalToken;
+  }
+
+  if (originalCloudID === undefined) {
+    delete process.env.JIRA_CLOUD_ID;
+  } else {
+    process.env.JIRA_CLOUD_ID = originalCloudID;
   }
 
   fs.rmSync(testDir, { recursive: true, force: true });
@@ -90,6 +100,7 @@ describe("jira command registration", () => {
     process.env.JIRA_BASE_URL = "https://env.atlassian.net";
     process.env.JIRA_EMAIL = "env@example.com";
     process.env.JIRA_API_TOKEN = "env-jira-token";
+    process.env.JIRA_CLOUD_ID = "11111111-2222-3333-4444-555555555555";
     saveCredentials("https://example.atlassian.net", "dev@example.com", "secret-jira-token");
 
     const output = await runRegisteredCommand(register, ["jira", "remove-credentials"]);
@@ -99,6 +110,7 @@ describe("jira command registration", () => {
     assert.match(output, /JIRA_BASE_URL still provides the effective Jira base URL when set/);
     assert.match(output, /JIRA_EMAIL still provides the effective Jira email when set/);
     assert.match(output, /JIRA_API_TOKEN still provides the effective Jira API token when set/);
+    assert.match(output, /JIRA_CLOUD_ID still provides the effective Jira Cloud ID when set/);
     assert.equal(output.includes("secret-jira-token"), false);
   });
 
@@ -106,6 +118,7 @@ describe("jira command registration", () => {
     process.env.JIRA_BASE_URL = "https://env.atlassian.net";
     process.env.JIRA_EMAIL = "env@example.com";
     process.env.JIRA_API_TOKEN = "env-jira-token";
+    process.env.JIRA_CLOUD_ID = "11111111-2222-3333-4444-555555555555";
 
     const output = await runRegisteredCommand(register, [
       "jira",
@@ -120,6 +133,7 @@ describe("jira command registration", () => {
     assert.match(output, /JIRA_BASE_URL still overrides the saved Jira base URL when set/);
     assert.match(output, /JIRA_EMAIL still overrides the saved Jira email when set/);
     assert.match(output, /JIRA_API_TOKEN still overrides the saved Jira API token when set/);
+    assert.match(output, /JIRA_CLOUD_ID still overrides the saved Jira Cloud ID when set/);
     assert.equal(output.includes("secret-jira-token"), false);
   });
 
@@ -201,6 +215,22 @@ describe("jira command registration", () => {
     assert.doesNotMatch(output, /JIRA_BASE_URL still overrides the saved Jira base URL when set/);
   });
 
+  test("credentials reports invalid Jira Cloud ID env overrides clearly", async () => {
+    process.env.JIRA_CLOUD_ID = "not-a-cloud-id";
+
+    const output = await runRegisteredCommand(register, [
+      "jira",
+      "credentials",
+      "https://saved.atlassian.net",
+      "saved@example.com",
+      "secret-jira-token",
+    ]);
+
+    assert.match(output, /Jira credentials saved/);
+    assert.match(output, /JIRA_CLOUD_ID is still set but invalid, so Jira commands will fail until it is fixed or unset/);
+    assert.doesNotMatch(output, /JIRA_CLOUD_ID still overrides the saved Jira Cloud ID when set/);
+  });
+
   test("remove-credentials reports invalid Jira base URL env overrides clearly", async () => {
     process.env.JIRA_BASE_URL = "http://env.atlassian.net";
     saveCredentials("https://example.atlassian.net", "dev@example.com", "secret-jira-token");
@@ -210,5 +240,68 @@ describe("jira command registration", () => {
     assert.match(output, /Jira credentials removed/);
     assert.match(output, /JIRA_BASE_URL is still set but invalid, so Jira commands will fail until it is fixed or unset/);
     assert.doesNotMatch(output, /JIRA_BASE_URL still provides the effective Jira base URL when set/);
+  });
+
+  test("credentials persists a Cloud ID positional and routes tickets through the scoped API host", async () => {
+    const cloudID = "11111111-2222-3333-4444-555555555555";
+
+    const saveOutput = await runRegisteredCommand(register, [
+      "jira",
+      "credentials",
+      "https://saved.atlassian.net",
+      "saved@example.com",
+      "secret-jira-token",
+      cloudID,
+    ]);
+
+    assert.equal(hasCredentials(), true);
+    assert.match(saveOutput, /Jira credentials saved/);
+    assert.equal(saveOutput.includes("secret-jira-token"), false);
+
+    const originalFetch = global.fetch;
+    let requestedURL = "";
+    global.fetch = async (input: URL | Request | string) => {
+      requestedURL = typeof input === "string" ? input : input.toString();
+      return support.searchResponse([support.searchIssue("ABC-123")]);
+    };
+
+    try {
+      const ticketsOutput = await runRegisteredCommand(register, ["jira", "tickets", "--json"]);
+      assert.equal(requestedURL, support.searchURL(`https://api.atlassian.com/ex/jira/${cloudID}`));
+      assert.match(ticketsOutput, /https:\/\/saved\.atlassian\.net\/browse\/ABC-123/);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  test("credentials rejects an invalid Cloud ID positional at the command boundary", async () => {
+    const originalStderrWrite = process.stderr.write;
+    const previousExitCode = process.exitCode;
+    const errorChunks: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      errorChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    let output: string;
+    try {
+      output = await runRegisteredCommand(register, [
+        "jira",
+        "credentials",
+        "https://saved.atlassian.net",
+        "saved@example.com",
+        "secret-jira-token",
+        "not-a-cloud-id",
+      ]);
+    } finally {
+      process.stderr.write = originalStderrWrite;
+      process.exitCode = previousExitCode;
+    }
+
+    const errors = errorChunks.join("");
+    assert.equal(hasCredentials(), false);
+    assert.match(errors, /Jira Cloud ID must be an Atlassian Cloud ID UUID/);
+    assert.doesNotMatch(output, /Jira credentials saved/);
+    assert.equal(output.includes("secret-jira-token"), false);
   });
 });

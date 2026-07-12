@@ -1,0 +1,2 @@
+open https://app.snyk.io/account/personal-access-tokens
+wait-for-text "Personal Access Tokens"

@@ -218,14 +218,28 @@ describe("configuration summary", () => {
     save("Triage Companion-Jira", "base-url", "https://example.atlassian.net");
     save("Triage Companion-Jira", "email", "dev@example.com");
     save("Triage Companion-Jira", "api-token", "stored-jira-token");
+    save("Triage Companion-Jira", "cloud-id", "11111111-2222-3333-4444-555555555555");
     process.env.JIRA_API_TOKEN = "env-jira-token";
 
     const summary = buildConfigurationSummary();
 
     assert.match(summary, /Jira/);
     assert.match(summary, /API token: configured \(environment\)/);
+    assert.match(summary, /Cloud ID: 11111111-2222-3333-4444-555555555555/);
     assert.ok(!summary.includes("stored-jira-token"));
     assert.ok(!summary.includes("env-jira-token"));
+  });
+
+  test("reports invalid Jira Cloud ID overrides", () => {
+    process.env.JIRA_BASE_URL = "https://example.atlassian.net";
+    process.env.JIRA_EMAIL = "dev@example.com";
+    process.env.JIRA_API_TOKEN = "env-jira-token";
+    process.env.JIRA_CLOUD_ID = "not-a-cloud-id";
+
+    const summary = buildConfigurationSummary();
+
+    assert.match(summary, /Cloud ID: not-a-cloud-id/);
+    assert.match(summary, /Cloud ID is invalid: must be an Atlassian Cloud ID UUID/);
   });
 
   test("shows canonical Jira base URLs from environment", () => {

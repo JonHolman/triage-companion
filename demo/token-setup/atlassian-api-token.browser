@@ -1,0 +1,3 @@
+open https://id.atlassian.com/manage-profile/security/api-tokens
+wait 20
+pdf atlassian-api-tokens-page.pdf

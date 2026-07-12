@@ -5,7 +5,7 @@ import globals from "globals";
 
 export default [
   {
-    files: ["src/**/*.ts", "eslint.config.ts"],
+    files: ["src/**/*.ts", "demo/**/*.ts", "eslint.config.ts"],
     ignores: ["node_modules/**"],
     languageOptions: {
       parser: tsParser,

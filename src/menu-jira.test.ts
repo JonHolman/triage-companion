@@ -13,10 +13,12 @@ describe("menu Jira actions", () => {
   test("reports invalid Jira base URL env overrides when saving from the menu", async () => {
     const originalConfigDir = process.env.TRIAGE_COMPANION_CONFIG_DIR;
     const originalJiraBaseURL = process.env.JIRA_BASE_URL;
+    const originalJiraCloudID = process.env.JIRA_CLOUD_ID;
     const originalCreateInterface = readline.createInterface;
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-jira-invalid-base-url-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.JIRA_BASE_URL = "http://env.atlassian.net";
+    delete process.env.JIRA_CLOUD_ID;
     resetCache();
 
     const answers = [
@@ -61,6 +63,11 @@ describe("menu Jira actions", () => {
       } else {
         process.env.JIRA_BASE_URL = originalJiraBaseURL;
       }
+      if (originalJiraCloudID === undefined) {
+        delete process.env.JIRA_CLOUD_ID;
+      } else {
+        process.env.JIRA_CLOUD_ID = originalJiraCloudID;
+      }
       fs.rmSync(testDir, { recursive: true, force: true });
     }
 
@@ -75,12 +82,14 @@ describe("menu Jira actions", () => {
     const originalJiraBaseURL = process.env.JIRA_BASE_URL;
     const originalJiraEmail = process.env.JIRA_EMAIL;
     const originalJiraApiToken = process.env.JIRA_API_TOKEN;
+    const originalJiraCloudID = process.env.JIRA_CLOUD_ID;
     const originalCreateInterface = readline.createInterface;
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-jira-whitespace-base-url-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.JIRA_BASE_URL;
     delete process.env.JIRA_EMAIL;
     delete process.env.JIRA_API_TOKEN;
+    delete process.env.JIRA_CLOUD_ID;
     resetCache();
 
     const answers = [
@@ -144,6 +153,11 @@ describe("menu Jira actions", () => {
       } else {
         process.env.JIRA_API_TOKEN = originalJiraApiToken;
       }
+      if (originalJiraCloudID === undefined) {
+        delete process.env.JIRA_CLOUD_ID;
+      } else {
+        process.env.JIRA_CLOUD_ID = originalJiraCloudID;
+      }
       fs.rmSync(testDir, { recursive: true, force: true });
     }
 
@@ -156,11 +170,13 @@ describe("menu Jira actions", () => {
     const originalConfigDir = process.env.TRIAGE_COMPANION_CONFIG_DIR;
     const originalJiraEmail = process.env.JIRA_EMAIL;
     const originalJiraApiToken = process.env.JIRA_API_TOKEN;
+    const originalJiraCloudID = process.env.JIRA_CLOUD_ID;
     const originalCreateInterface = readline.createInterface;
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-jira-invalid-credentials-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.JIRA_EMAIL = "env\n@example.com";
     process.env.JIRA_API_TOKEN = "env-\njira-token";
+    delete process.env.JIRA_CLOUD_ID;
     resetCache();
 
     const answers = [
@@ -209,6 +225,11 @@ describe("menu Jira actions", () => {
         delete process.env.JIRA_API_TOKEN;
       } else {
         process.env.JIRA_API_TOKEN = originalJiraApiToken;
+      }
+      if (originalJiraCloudID === undefined) {
+        delete process.env.JIRA_CLOUD_ID;
+      } else {
+        process.env.JIRA_CLOUD_ID = originalJiraCloudID;
       }
       fs.rmSync(testDir, { recursive: true, force: true });
     }

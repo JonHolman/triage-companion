@@ -17,6 +17,7 @@ export function setupConfigSummaryTest(): { readonly testDir: string } {
   let originalJiraBaseURL: string | undefined;
   let originalJiraEmail: string | undefined;
   let originalJiraApiToken: string | undefined;
+  let originalJiraCloudID: string | undefined;
   let originalIgnoredBranches: string | undefined;
 
   beforeEach(() => {
@@ -29,6 +30,7 @@ export function setupConfigSummaryTest(): { readonly testDir: string } {
     originalJiraBaseURL = process.env.JIRA_BASE_URL;
     originalJiraEmail = process.env.JIRA_EMAIL;
     originalJiraApiToken = process.env.JIRA_API_TOKEN;
+    originalJiraCloudID = process.env.JIRA_CLOUD_ID;
     originalIgnoredBranches = process.env[ENV.GITHUB_PR_IGNORE_BRANCHES];
     state.testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-config-summary-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = state.testDir;
@@ -40,6 +42,7 @@ export function setupConfigSummaryTest(): { readonly testDir: string } {
     delete process.env.JIRA_BASE_URL;
     delete process.env.JIRA_EMAIL;
     delete process.env.JIRA_API_TOKEN;
+    delete process.env.JIRA_CLOUD_ID;
     delete process.env[ENV.GITHUB_PR_IGNORE_BRANCHES];
     resetCache();
   });
@@ -98,6 +101,12 @@ export function setupConfigSummaryTest(): { readonly testDir: string } {
       delete process.env.JIRA_API_TOKEN;
     } else {
       process.env.JIRA_API_TOKEN = originalJiraApiToken;
+    }
+
+    if (originalJiraCloudID === undefined) {
+      delete process.env.JIRA_CLOUD_ID;
+    } else {
+      process.env.JIRA_CLOUD_ID = originalJiraCloudID;
     }
 
     if (originalIgnoredBranches === undefined) {

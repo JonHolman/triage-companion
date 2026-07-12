@@ -9,6 +9,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "eslint.config.ts"],
+  "include": ["src/**/*.ts", "demo/**/*.ts", "eslint.config.ts"],
   "exclude": ["node_modules"]
 }

@@ -8,6 +8,7 @@ import {
   type ServiceModel,
 } from "./config-model-core.ts";
 import {
+  atlassianCloudID,
   executablePath,
   gitHubIgnoredBranchList,
   gitSearchRootsList,
@@ -189,16 +190,19 @@ const SERVICES: Record<ServiceId, ServiceModel> = {
       permissionRequirements: [
         {
           feature: "Jira tickets",
-          permissions: ["Browse Projects", "View Issues"],
+          permissions: [
+            "Browse Projects and View Issues; scoped Atlassian API tokens also need the Jira read scopes for issue search",
+          ],
         },
       ],
-      saveHint: "triage-companion jira credentials <base-url> <email> <token>",
-      envHint: "JIRA_BASE_URL + JIRA_EMAIL + JIRA_API_TOKEN",
+      saveHint: "triage-companion jira credentials <base-url> <email> <token> [cloud-id]",
+      envHint: "JIRA_BASE_URL + JIRA_EMAIL + JIRA_API_TOKEN + optional JIRA_CLOUD_ID",
       configuredLabel: "configured",
       missingLabel: "not configured",
       setupGuidance: [
         "Use the Jira site root from your browser address bar, for example https://your-company.atlassian.net.",
         "If you are viewing a ticket page, remove the trailing /browse/... path and keep only the site root.",
+        "For scoped Atlassian API tokens, also provide the site's Cloud ID so Jira API calls use api.atlassian.com/ex/jira/{cloudId}.",
         "Do not include usernames, tokens, or other credentials in the Jira base URL.",
         "If USA-only residency is required, confirm the Atlassian site data residency policy with your site admin.",
       ],
@@ -248,7 +252,22 @@ const SERVICES: Record<ServiceId, ServiceModel> = {
         validate: nonEmpty,
       },
     ],
-    optionalSettings: [],
+    optionalSettings: [
+      {
+        key: "cloudId",
+        label: "Cloud ID",
+        description: "Jira Cloud ID for scoped Atlassian API tokens",
+        required: false,
+        secret: false,
+        persisted: true,
+        envVar: ENV.JIRA_CLOUD_ID,
+        storage: {
+          service: "Triage Companion-Jira",
+          account: "cloud-id",
+        },
+        validate: atlassianCloudID,
+      },
+    ],
   },
   git: {
     id: "git",

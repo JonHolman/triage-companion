@@ -19,14 +19,17 @@ import {
 const baseURLField = getServiceSetting("jira", "baseURL");
 const emailField = getServiceSetting("jira", "email");
 const apiTokenField = getServiceSetting("jira", "apiToken");
+const cloudIDField = getServiceSetting("jira", "cloudId");
 
 const baseURLStorage = requiredSettingStorage(baseURLField);
 const emailStorage = requiredSettingStorage(emailField);
 const apiTokenStorage = requiredSettingStorage(apiTokenField);
+const cloudIDStorage = requiredSettingStorage(cloudIDField);
 const SERVICE = baseURLStorage.service;
 const ACCOUNT_BASE_URL = baseURLStorage.account;
 const ACCOUNT_EMAIL = emailStorage.account;
 const ACCOUNT_TOKEN = apiTokenStorage.account;
+const ACCOUNT_CLOUD_ID = cloudIDStorage.account;
 const MAX_PAGE_SIZE = 100;
 const ISSUE_FIELDS = "summary,status,priority,issuetype,reporter,updated,resolution";
 const JQL =
@@ -40,6 +43,7 @@ interface JiraSettings {
   baseURL: string;
   email: string;
   apiToken: string;
+  cloudID: string | null;
 }
 
 interface JiraTicket {
@@ -71,6 +75,10 @@ function resolveSettings(): JiraSettings | null {
     ACCOUNT_TOKEN,
     requiredSettingEnvVar(apiTokenField),
   );
+  const rawCloudID = readSettingWithEnvironmentOverride(
+    ACCOUNT_CLOUD_ID,
+    requiredSettingEnvVar(cloudIDField),
+  );
 
   if (!base || rawEmail === null || rawApiToken === null) {
     return null;
@@ -78,11 +86,13 @@ function resolveSettings(): JiraSettings | null {
 
   const email = validateConfiguredText(rawEmail, "Jira email");
   const apiToken = validateConfiguredText(rawApiToken, "Jira API token");
+  const cloudID = rawCloudID === null ? null : validateCloudID(rawCloudID);
 
   return {
     baseURL: base,
     email,
     apiToken,
+    cloudID,
   };
 }
 
@@ -94,7 +104,7 @@ export function hasCredentials(): boolean {
   }
 }
 
-export function saveCredentials(baseURL: string, email: string, apiToken: string): void {
+export function saveCredentials(baseURL: string, email: string, apiToken: string, cloudID?: string): void {
   const normalized = normalizeBaseURL(baseURL);
   if (!normalized) {
     throw new Error("Jira base URL is required.");
@@ -102,11 +112,13 @@ export function saveCredentials(baseURL: string, email: string, apiToken: string
 
   const validatedEmail = validateConfiguredText(email, "Jira email");
   const validatedToken = validateConfiguredText(apiToken, "Jira API token");
+  const validatedCloudID = cloudID === undefined || cloudID === "" ? null : validateCloudID(cloudID);
 
   creds.updateMany([
     { service: SERVICE, account: ACCOUNT_BASE_URL, value: normalized },
     { service: SERVICE, account: ACCOUNT_EMAIL, value: validatedEmail },
     { service: SERVICE, account: ACCOUNT_TOKEN, value: validatedToken },
+    { service: SERVICE, account: ACCOUNT_CLOUD_ID, value: validatedCloudID },
   ]);
 }
 
@@ -115,11 +127,27 @@ export function removeCredentials(): void {
     { service: SERVICE, account: ACCOUNT_BASE_URL, value: null },
     { service: SERVICE, account: ACCOUNT_EMAIL, value: null },
     { service: SERVICE, account: ACCOUNT_TOKEN, value: null },
+    { service: SERVICE, account: ACCOUNT_CLOUD_ID, value: null },
   ]);
 }
 
 function authHeader(email: string, token: string): string {
   return `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`;
+}
+
+function validateCloudID(value: string): string {
+  const validation = cloudIDField.validate?.(value) ?? null;
+  if (validation !== null) {
+    throw new Error(`Jira Cloud ID ${validation}.`);
+  }
+
+  return value;
+}
+
+function jiraAPIBaseURL(settings: JiraSettings): string {
+  return settings.cloudID === null
+    ? settings.baseURL
+    : `https://api.atlassian.com/ex/jira/${settings.cloudID}`;
 }
 
 function isNamedFieldRecord(value: unknown): value is Record<string, unknown> {
@@ -207,6 +235,21 @@ export function baseURLEnvOverrideState(
   }
 }
 
+export function cloudIDEnvOverrideState(
+  raw: string | undefined | null = process.env[requiredSettingEnvVar(cloudIDField)],
+): "missing" | "valid" | "invalid" {
+  if (raw === undefined || raw === null) {
+    return "missing";
+  }
+
+  try {
+    validateCloudID(raw);
+    return "valid";
+  } catch {
+    return "invalid";
+  }
+}
+
 function validateIssueKey(value: string): string {
   if (!/^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(value)) {
     throw new Error("Jira API response included an invalid issue key.");
@@ -283,8 +326,8 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
   const settings = resolveSettings();
   if (!settings) {
     throw new Error(
-      "Jira not configured. Save credentials with `triage-companion jira credentials <base-url> <email> <token>` " +
-        "or set JIRA_BASE_URL, JIRA_EMAIL, and JIRA_API_TOKEN. " +
+      "Jira not configured. Save credentials with `triage-companion jira credentials <base-url> <email> <token> [cloud-id]` " +
+        "or set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, and optional JIRA_CLOUD_ID. " +
         `Required permissions: ${jiraPermissionText}`,
     );
   }
@@ -303,7 +346,7 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
       params.set("nextPageToken", nextPageToken);
     }
 
-    const url = `${settings.baseURL}/rest/api/3/search/jql?${params}`;
+    const url = `${jiraAPIBaseURL(settings)}/rest/api/3/search/jql?${params}`;
     let response: Response;
     try {
       response = await fetch(url, {

@@ -37,6 +37,17 @@ function printCredentialOverrideMessage(
   );
 }
 
+function printCloudIDOverrideMessage(context: "saved" | "effective"): void {
+  printEnvOverrideMessage(
+    ENV.JIRA_CLOUD_ID,
+    jira.cloudIDEnvOverrideState(),
+    "Jira commands",
+    context === "saved"
+      ? `${ENV.JIRA_CLOUD_ID} still overrides the saved Jira Cloud ID when set.`
+      : `${ENV.JIRA_CLOUD_ID} still provides the effective Jira Cloud ID when set.`,
+  );
+}
+
 export function register(program: Command): void {
   const cmd = program.command("jira").description("Jira tickets");
 
@@ -46,9 +57,10 @@ export function register(program: Command): void {
     .argument("<base-url>", "Jira base URL (for example https://your-company.atlassian.net)")
     .argument("<email>", "Jira account email")
     .argument("<token>", "Jira API token")
-    .action((baseURL: string, email: string, token: string) => {
+    .argument("[cloud-id]", "Jira Cloud ID for scoped Atlassian API tokens")
+    .action((baseURL: string, email: string, token: string, cloudID?: string) => {
       return runCommand("jira credentials", () => {
-        jira.saveCredentials(baseURL, email, token);
+        jira.saveCredentials(baseURL, email, token, cloudID);
         console.log("✓ Jira credentials saved.");
         printBaseURLOverrideMessage("saved");
         printCredentialOverrideMessage(
@@ -59,6 +71,7 @@ export function register(program: Command): void {
           ENV.JIRA_API_TOKEN,
           `${ENV.JIRA_API_TOKEN} still overrides the saved Jira API token when set.`,
         );
+        printCloudIDOverrideMessage("saved");
         printSetupGuidance(jiraService);
         printTokenPermissions(jiraService);
       });
@@ -80,6 +93,7 @@ export function register(program: Command): void {
           ENV.JIRA_API_TOKEN,
           `${ENV.JIRA_API_TOKEN} still provides the effective Jira API token when set.`,
         );
+        printCloudIDOverrideMessage("effective");
       });
     });
 

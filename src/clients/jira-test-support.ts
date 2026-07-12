@@ -14,6 +14,7 @@ export function setupJiraClientTest(): JiraTestContext {
   let originalBaseURL: string | undefined;
   let originalEmail: string | undefined;
   let originalApiToken: string | undefined;
+  let originalCloudID: string | undefined;
   let testDir = "";
 
   beforeEach(() => {
@@ -21,6 +22,7 @@ export function setupJiraClientTest(): JiraTestContext {
     originalBaseURL = process.env.JIRA_BASE_URL;
     originalEmail = process.env.JIRA_EMAIL;
     originalApiToken = process.env.JIRA_API_TOKEN;
+    originalCloudID = process.env.JIRA_CLOUD_ID;
 
     testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-jira-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
@@ -28,6 +30,7 @@ export function setupJiraClientTest(): JiraTestContext {
     delete process.env.JIRA_BASE_URL;
     delete process.env.JIRA_EMAIL;
     delete process.env.JIRA_API_TOKEN;
+    delete process.env.JIRA_CLOUD_ID;
     resetCache();
   });
 
@@ -56,6 +59,12 @@ export function setupJiraClientTest(): JiraTestContext {
       delete process.env.JIRA_API_TOKEN;
     } else {
       process.env.JIRA_API_TOKEN = originalApiToken;
+    }
+
+    if (originalCloudID === undefined) {
+      delete process.env.JIRA_CLOUD_ID;
+    } else {
+      process.env.JIRA_CLOUD_ID = originalCloudID;
     }
 
     fs.rmSync(testDir, { force: true, recursive: true });

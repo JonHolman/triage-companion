@@ -21,12 +21,14 @@ describe("configuration model", () => {
     const githubToken = github.requiredSettings.find((field) => field.key === "token");
     const jiraBaseURL = jira.requiredSettings.find((field) => field.key === "baseURL");
     const jiraApiToken = jira.requiredSettings.find((field) => field.key === "apiToken");
+    const jiraCloudID = jira.optionalSettings.find((field) => field.key === "cloudId");
     const snykToken = snyk.requiredSettings.find((field) => field.key === "token");
     const snykAPIBaseURL = snyk.optionalSettings.find((field) => field.key === "apiBaseURL");
 
     assert.ok(githubToken);
     assert.ok(jiraBaseURL);
     assert.ok(jiraApiToken);
+    assert.ok(jiraCloudID);
     assert.ok(snykToken);
     assert.ok(snykAPIBaseURL);
 
@@ -67,6 +69,12 @@ describe("configuration model", () => {
     assert.equal(jiraApiToken.environmentOverridesStored, true);
     assert.match(jiraApiToken.validate?.(" jira-token ") ?? "", /surrounding whitespace/);
     assert.match(jiraApiToken.validate?.("bad\ntoken") ?? "", /control characters/);
+    assert.equal(jiraCloudID.persisted, true);
+    assert.equal(jiraCloudID.envVar, "JIRA_CLOUD_ID");
+    assert.equal(jiraCloudID.validate?.("11111111-2222-3333-4444-555555555555"), null);
+    assert.match(jiraCloudID.validate?.(" 11111111-2222-3333-4444-555555555555 ") ?? "", /surrounding whitespace/);
+    assert.match(jiraCloudID.validate?.("11111111-2222-3333-4444-55555\t555555") ?? "", /control characters/);
+    assert.match(jiraCloudID.validate?.("not-a-cloud-id") ?? "", /Cloud ID UUID/);
     assert.equal(snykToken.secret, true);
     assert.equal(snykToken.persisted, true);
     assert.match(snykToken.validate?.(" snyk-token ") ?? "", /surrounding whitespace/);
@@ -170,7 +178,12 @@ describe("configuration model", () => {
 
   test("uses the Jira API token from environment before persisted config", () => {
     const result = resolveServiceState("jira", {
-      readEnv: (name) => name === "JIRA_API_TOKEN" ? "env-token" : undefined,
+      readEnv: (name) =>
+        name === "JIRA_API_TOKEN"
+          ? "env-token"
+          : name === "JIRA_CLOUD_ID"
+            ? "11111111-2222-3333-4444-555555555555"
+            : undefined,
       readSecret: (_service, account) =>
         account === "base-url"
           ? "https://example.atlassian.net"
@@ -185,6 +198,7 @@ describe("configuration model", () => {
     assert.equal(result.values.baseURL.source, "secret");
     assert.equal(result.values.apiToken.source, "environment");
     assert.equal(result.values.apiToken.value, "env-token");
+    assert.equal(result.values.cloudId.source, "environment");
   });
 
   test("uses non-secret environment values before persisted config", () => {

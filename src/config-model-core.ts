@@ -46,6 +46,7 @@ export const ENV = {
   JIRA_BASE_URL: "JIRA_BASE_URL",
   JIRA_EMAIL: "JIRA_EMAIL",
   JIRA_API_TOKEN: "JIRA_API_TOKEN",
+  JIRA_CLOUD_ID: "JIRA_CLOUD_ID",
 } as const;
 
 export interface StorageBinding {

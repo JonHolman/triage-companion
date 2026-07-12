@@ -122,6 +122,31 @@ function printJiraBaseURLOverrideMessage(context: "saved" | "effective"): boolea
   return true;
 }
 
+function printJiraCloudIDOverrideMessage(context: "saved" | "effective"): boolean {
+  const state = jira.cloudIDEnvOverrideState();
+  if (state === "missing") {
+    return false;
+  }
+
+  if (state === "invalid") {
+    console.log(
+      dim(
+        `${ENV.JIRA_CLOUD_ID} is still set but invalid, so Jira commands will fail until it is fixed or unset.`,
+      ),
+    );
+    return true;
+  }
+
+  console.log(
+    dim(
+      context === "saved"
+        ? `${ENV.JIRA_CLOUD_ID} still overrides the saved Jira Cloud ID when set.`
+        : `${ENV.JIRA_CLOUD_ID} still provides the effective Jira Cloud ID when set.`,
+    ),
+  );
+  return true;
+}
+
 function printTextEnvOverrideMessage(
   envVar: string,
   validMessage: string,
@@ -243,11 +268,12 @@ async function setJiraCredentials(): Promise<void> {
   const baseURL = await prompt("Jira base URL (for example https://your-company.atlassian.net): ");
   const email = await prompt("Jira email: ");
   const token = await promptSecret("Jira API token: ");
+  const cloudID = await prompt("Jira Cloud ID for scoped tokens (optional): ");
   if (!baseURL || !email || !token) {
     return;
   }
 
-  jira.saveCredentials(baseURL, email, token);
+  jira.saveCredentials(baseURL, email, token, cloudID || undefined);
   console.log("Jira credentials saved.");
   printJiraBaseURLOverrideMessage("saved");
   printTextEnvOverrideMessage(
@@ -260,6 +286,7 @@ async function setJiraCredentials(): Promise<void> {
     `${ENV.JIRA_API_TOKEN} still overrides the saved Jira API token when set.`,
     `${ENV.JIRA_API_TOKEN} is still set but invalid, so Jira commands will fail until it is fixed or unset.`,
   );
+  printJiraCloudIDOverrideMessage("saved");
 }
 
 function removeJiraCredentials(): void {
@@ -276,6 +303,7 @@ function removeJiraCredentials(): void {
     `${ENV.JIRA_API_TOKEN} still provides the effective Jira API token when set.`,
     `${ENV.JIRA_API_TOKEN} is still set but invalid, so Jira commands will fail until it is fixed or unset.`,
   );
+  printJiraCloudIDOverrideMessage("effective");
 }
 
 async function editSearchRoots(): Promise<void> {
