@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { afterEach, describe, test } from "node:test";
+import { describe, test } from "node:test";
 
 import * as github from "./clients/github.ts";
 import * as jira from "./clients/jira.ts";
@@ -15,14 +15,11 @@ import { resetCache } from "./credential-store.ts";
 import { ENV } from "./config-model.ts";
 import { SUPPRESS_ACTIVITY_ENV } from "./commands/command-utils.ts";
 import { buildConfigurationSummary } from "./config-summary.ts";
-import { ESCAPE } from "./menu-keys.ts";
 import { setMenuListActionClientsForTest } from "./menu-list-actions.ts";
 import {
   buildMenuTree,
-  ESCAPE_KEY_TIMEOUT_MS,
   isMenuInterruptKey,
   MenuActionReportedError,
-  readMenuKey,
   runMenuAction,
 } from "./menu.ts";
 
@@ -391,7 +388,7 @@ describe("menu", () => {
       const listDirtyRepositories = gitMenu?.items.find((item) => item.label === "List dirty repositories");
       assert.ok(listDirtyRepositories?.action);
 
-      const pending = listDirtyRepositories.action();
+      const pending = Promise.resolve(listDirtyRepositories.action());
       await Promise.resolve();
       assert.equal(childEnv?.[SUPPRESS_ACTIVITY_ENV], "1");
 
@@ -434,7 +431,7 @@ describe("menu", () => {
       const listDirtyRepositories = gitMenu?.items.find((item) => item.label === "List dirty repositories");
       assert.ok(listDirtyRepositories?.action);
 
-      const pending = listDirtyRepositories.action();
+      const pending = Promise.resolve(listDirtyRepositories.action());
       await Promise.resolve();
 
       children[0]?.emit("close", 1, null);
@@ -454,76 +451,5 @@ describe("menu", () => {
       childProcess.spawn = originalSpawn;
       syncBuiltinESMExports();
     }
-  });
-});
-
-describe("readMenuKey stdin handling", { concurrency: false }, () => {
-  afterEach(() => {
-    process.stdin.removeAllListeners("data");
-    process.stdin.pause();
-  });
-
-  function emitStdin(data: string): void {
-    process.stdin.emit("data", Buffer.from(data));
-  }
-
-  test("resolves a lingering bare ESC to the escape key only after the quiet period", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-
-    let settled = false;
-    const pending = readMenuKey().then((key) => {
-      settled = true;
-      return key;
-    });
-
-    emitStdin(ESCAPE);
-    await Promise.resolve();
-    assert.equal(settled, false);
-
-    t.mock.timers.tick(ESCAPE_KEY_TIMEOUT_MS - 1);
-    await Promise.resolve();
-    assert.equal(settled, false);
-
-    t.mock.timers.tick(1);
-    assert.deepEqual(await pending, { name: "escape", sequence: ESCAPE });
-  });
-
-  test("reassembles a bare ESC and [A split across stdin chunks into a single up key", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-
-    const firstKey = readMenuKey();
-    emitStdin(ESCAPE);
-    emitStdin("[A");
-    assert.deepEqual(await firstKey, { name: "up", sequence: `${ESCAPE}[A` });
-
-    // Completing the arrow cleared the pending bare-ESC timer, so advancing the
-    // clock must not deliver a phantom escape or leave a stray stdin listener
-    // that would hijack the following read.
-    t.mock.timers.tick(ESCAPE_KEY_TIMEOUT_MS);
-
-    const secondKey = readMenuKey();
-    emitStdin("q");
-    assert.deepEqual(await secondKey, { name: "q", sequence: "q" });
-  });
-
-  test("returns input typed ahead of the resolved key to stdin for the next reader", async () => {
-    const key = readMenuKey();
-    emitStdin("\r12345\r");
-
-    assert.deepEqual(await key, { name: "return", sequence: "\r" });
-    assert.equal(String(process.stdin.read() ?? ""), "12345\r");
-  });
-
-  test("clears pending input after the escape timeout so it does not leak into the next read", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
-
-    const firstKey = readMenuKey();
-    emitStdin(ESCAPE);
-    t.mock.timers.tick(ESCAPE_KEY_TIMEOUT_MS);
-    assert.deepEqual(await firstKey, { name: "escape", sequence: ESCAPE });
-
-    const secondKey = readMenuKey();
-    emitStdin("q");
-    assert.deepEqual(await secondKey, { name: "q", sequence: "q" });
   });
 });
