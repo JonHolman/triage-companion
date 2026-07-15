@@ -196,23 +196,14 @@ describeWithExecutableWrapper("git status output validation", { concurrency: fal
   });
 
   test("handles git status output larger than Node's default exec buffer", () => {
+    const status = [
+      "## feature",
+      ...Array.from({ length: 70_000 }, (_, index) => ` M src/file-${index + 1}.ts`),
+    ].join("\n");
+
     withFakeGit(
       "git-huge-status-root-",
-      `repo=""
-if [ "$1" = "-C" ]; then
-  repo="$2"
-  shift 2
-fi
-
-if [ "$1" = "status" ] && [ "$(basename "$repo")" = "huge-repo" ]; then
-  printf '## feature\\n'
-  i=1
-  while [ "$i" -le 70000 ]; do
-    printf ' M src/file-%s.ts\\n' "$i"
-    i=$((i + 1))
-  done
-fi
-`,
+      statusScriptFor("huge-repo", status),
       (root) => {
         const hugeRepo = path.join(root, "huge-repo");
         writeHeadFile(path.join(hugeRepo, ".git"));

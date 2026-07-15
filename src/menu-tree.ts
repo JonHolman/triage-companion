@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import * as github from "./clients/github.ts";
@@ -13,12 +13,23 @@ import {
   saveSearchRoots,
   searchRootsEnvOverrideState,
 } from "./config.ts";
-import { inlineErrorText } from "./commands/command-utils.ts";
+import { inlineErrorText, startActivityNotice, SUPPRESS_ACTIVITY_ENV } from "./commands/command-utils.ts";
 import { textEnvOverrideState } from "./config-path.ts";
 import { ENV, getServiceDefinition } from "./config-model.ts";
 import { dim } from "./format.ts";
+import {
+  listGitHubFailedWorkflows,
+  listGitHubNotifications,
+  listGitHubOpenPullRequests,
+  listGitHubOpenPullRequestsWithAuthorRegex,
+  listGitHubOpenPullRequestsWithLogin,
+  listGitHubSecurityAlerts,
+  listJiraTickets,
+  listSnykIssues,
+  listSnykIssuesBySeverity,
+} from "./menu-list-actions.ts";
 import { prompt, promptSecret } from "./menu-prompts.ts";
-import { MenuActionReportedError, type MenuNode } from "./menu-types.ts";
+import { MenuActionReportedError, type MenuItem, type MenuNode } from "./menu-types.ts";
 
 const ENTRY_POINT = fileURLToPath(new URL("./index.ts", import.meta.url));
 
@@ -32,24 +43,25 @@ function printServiceSetup(serviceId: "github" | "snyk" | "jira"): void {
   }
 }
 
-function runCli(args: string[]): void {
-  const result = spawnSync(process.execPath, [ENTRY_POINT, ...args], {
-    stdio: "inherit",
-    env: process.env,
-  });
+async function runCli(args: string[]): Promise<void> {
+  const label = args.join(" ");
+  const activityNotice = startActivityNotice(label);
+  const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+    const child = spawn(process.execPath, [ENTRY_POINT, ...args], {
+      stdio: "inherit",
+      env: { ...process.env, [SUPPRESS_ACTIVITY_ENV]: "1" },
+    });
 
-  if (result.error) {
-    throw new Error(`triage-companion failed to run ${args.join(" ")}: ${result.error.message}`);
-  }
+    child.once("error", reject);
+    child.once("close", (code, signal) => resolve({ code, signal }));
+  }).finally(() => activityNotice?.stop());
 
   if (result.signal) {
-    throw new Error(`triage-companion ${args.join(" ")} exited on signal ${result.signal}.`);
+    throw new Error(`triage-companion ${label} exited on signal ${result.signal}.`);
   }
 
-  if (result.status !== 0) {
-    throw new MenuActionReportedError(
-      `triage-companion ${args.join(" ")} exited with status ${result.status}.`,
-    );
+  if (result.code !== 0) {
+    throw new MenuActionReportedError(`triage-companion ${label} exited with status ${result.code}.`);
   }
 }
 
@@ -161,6 +173,16 @@ function printTextEnvOverrideMessage(
   return true;
 }
 
+async function confirmCredentialRemoval(label: string): Promise<boolean> {
+  const confirmation = await prompt(`Type remove to delete saved ${label} (blank, Esc, or q to cancel): `);
+  if (confirmation !== "remove") {
+    console.log(`${label} removal canceled.`);
+    return false;
+  }
+
+  return true;
+}
+
 async function setGitHubToken(): Promise<void> {
   printServiceSetup("github");
   const token = await promptSecret("GitHub token: ");
@@ -172,7 +194,11 @@ async function setGitHubToken(): Promise<void> {
   console.log("GitHub token saved.");
 }
 
-function removeGitHubToken(): void {
+async function removeGitHubToken(): Promise<void> {
+  if (!(await confirmCredentialRemoval("GitHub token"))) {
+    return;
+  }
+
   github.removeToken();
   console.log("GitHub token removed.");
   printTextEnvOverrideMessage(
@@ -180,31 +206,6 @@ function removeGitHubToken(): void {
     `${ENV.GITHUB_TOKEN} still provides the effective GitHub token when set.`,
     `${ENV.GITHUB_TOKEN} is still set but invalid, so GitHub commands will fail until it is fixed or unset.`,
   );
-}
-
-async function listGitHubSecurityAlerts(): Promise<void> {
-  const repos = await prompt(
-    "Repository full names (owner/repo, space-separated; blank for notification repos): ",
-  );
-  runCli(["github", "security-alerts", ...repos.split(/\s+/).filter(Boolean)]);
-}
-
-async function listGitHubOpenPullRequestsWithLogin(): Promise<void> {
-  const login = await prompt("GitHub login override (blank to cancel): ");
-  if (!login.trim()) {
-    return;
-  }
-
-  runCli(["github", "my-open-prs", "--github-login", login]);
-}
-
-async function listGitHubOpenPullRequestsWithAuthorRegex(): Promise<void> {
-  const pattern = await prompt("Author regex override (blank to cancel): ");
-  if (!pattern.trim()) {
-    return;
-  }
-
-  runCli(["github", "my-open-prs", "--author-regex", pattern]);
 }
 
 async function setSnykToken(): Promise<void> {
@@ -218,7 +219,11 @@ async function setSnykToken(): Promise<void> {
   console.log("Snyk token saved.");
 }
 
-function removeSnykToken(): void {
+async function removeSnykToken(): Promise<void> {
+  if (!(await confirmCredentialRemoval("Snyk token"))) {
+    return;
+  }
+
   snyk.removeToken();
   console.log("Snyk token removed.");
   printTextEnvOverrideMessage(
@@ -254,15 +259,6 @@ async function resetSnykAPIBaseURL(): Promise<void> {
   printSnykAPIBaseURLOverrideMessage("default");
 }
 
-async function listSnykIssuesBySeverity(): Promise<void> {
-  const severity = await prompt("Severity (critical, high, medium, low): ");
-  if (!severity) {
-    return;
-  }
-
-  runCli(["snyk", "issues", "--severity", severity]);
-}
-
 async function setJiraCredentials(): Promise<void> {
   printServiceSetup("jira");
   const baseURL = await prompt("Jira base URL (for example https://your-company.atlassian.net): ");
@@ -289,7 +285,11 @@ async function setJiraCredentials(): Promise<void> {
   printJiraCloudIDOverrideMessage("saved");
 }
 
-function removeJiraCredentials(): void {
+async function removeJiraCredentials(): Promise<void> {
+  if (!(await confirmCredentialRemoval("Jira credentials"))) {
+    return;
+  }
+
   jira.removeCredentials();
   console.log("Jira credentials removed.");
   printJiraBaseURLOverrideMessage("effective");
@@ -361,109 +361,106 @@ async function clearSearchRootsSetting(): Promise<void> {
   console.log("Git search roots reset to defaults.");
 }
 
+function buildServiceMenu(
+  title: string,
+  configured: boolean,
+  workItems: MenuItem[],
+  credentialItems: MenuItem[],
+  refresh: () => MenuNode,
+): MenuNode {
+  const credentialsItem: MenuItem = {
+    label: "Credentials",
+    submenu: { title: `${title} Credentials`, items: [...credentialItems, { label: "Back" }] },
+  };
+  const items = configured ? [...workItems, credentialsItem] : [credentialsItem, ...workItems];
+
+  return { title, items: [...items, { label: "Back" }], refresh };
+}
+
+function buildGitHubMenu(): MenuNode {
+  return buildServiceMenu(
+    "GitHub",
+    github.hasToken(),
+    [
+      { label: "List notifications", action: listGitHubNotifications },
+      {
+        label: "Mark notification read",
+        action: async () => {
+          const id = await prompt("Notification thread ID: ");
+          if (id) {
+            await runCli(["github", "mark-read", id]);
+          }
+        },
+      },
+      { label: "List my open PRs", action: listGitHubOpenPullRequests },
+      {
+        label: "List my open PRs with login override",
+        action: listGitHubOpenPullRequestsWithLogin,
+      },
+      {
+        label: "List my open PRs with author regex",
+        action: listGitHubOpenPullRequestsWithAuthorRegex,
+      },
+      { label: "List security alerts", action: listGitHubSecurityAlerts },
+      { label: "List failed workflows", action: listGitHubFailedWorkflows },
+    ],
+    [{ label: "Set or replace token", action: setGitHubToken }, { label: "Remove token", action: removeGitHubToken }],
+    buildGitHubMenu,
+  );
+}
+
+function buildSnykMenu(): MenuNode {
+  return buildServiceMenu(
+    "Snyk",
+    snyk.hasToken(),
+    [
+      { label: "List issues", action: listSnykIssues },
+      { label: "List issues by severity", action: listSnykIssuesBySeverity },
+    ],
+    [
+      { label: "Set or replace token", action: setSnykToken },
+      { label: "Set API base URL", action: setSnykAPIBaseURL },
+      { label: "Reset API base URL", action: resetSnykAPIBaseURL },
+      { label: "Remove token", action: removeSnykToken },
+    ],
+    buildSnykMenu,
+  );
+}
+
+function buildJiraMenu(): MenuNode {
+  return buildServiceMenu(
+    "Jira",
+    jira.hasCredentials(),
+    [{ label: "List tickets", action: listJiraTickets }],
+    [{ label: "Set or replace credentials", action: setJiraCredentials }, { label: "Remove credentials", action: removeJiraCredentials }],
+    buildJiraMenu,
+  );
+}
+
 export function buildMenuTree(): MenuNode {
   return {
     title: "triage-companion",
     items: [
-      {
-        label: "Status",
-        action: () => runCli(["status"]),
-      },
-      {
-        label: "GitHub",
-        submenu: {
-          title: "GitHub",
-          items: [
-            { label: "List notifications", action: () => runCli(["github", "notifications"]) },
-            {
-              label: "Mark notification read",
-              action: async () => {
-                const id = await prompt("Notification thread ID: ");
-                if (id) {
-                  runCli(["github", "mark-read", id]);
-                }
-              },
-            },
-            { label: "List my open PRs", action: () => runCli(["github", "my-open-prs"]) },
-            {
-              label: "List my open PRs with login override",
-              action: listGitHubOpenPullRequestsWithLogin,
-            },
-            {
-              label: "List my open PRs with author regex",
-              action: listGitHubOpenPullRequestsWithAuthorRegex,
-            },
-            {
-              label: "List security alerts",
-              action: listGitHubSecurityAlerts,
-            },
-            {
-              label: "List failed workflows",
-              action: async () => {
-                const repos = await prompt(
-                  "Repository full names (owner/repo, space-separated; blank for current repo): ",
-                );
-                runCli(["github", "failed-workflows", ...repos.split(/\s+/).filter(Boolean)]);
-              },
-            },
-            { label: "Set or replace token", action: setGitHubToken },
-            { label: "Remove token", action: removeGitHubToken },
-            { label: "Back" },
-          ],
-        },
-      },
-      {
-        label: "Snyk",
-        submenu: {
-          title: "Snyk",
-          items: [
-            { label: "List issues", action: () => runCli(["snyk", "issues"]) },
-            { label: "List issues by severity", action: listSnykIssuesBySeverity },
-            { label: "Set API base URL", action: setSnykAPIBaseURL },
-            { label: "Reset API base URL", action: resetSnykAPIBaseURL },
-            { label: "Set or replace token", action: setSnykToken },
-            { label: "Remove token", action: removeSnykToken },
-            { label: "Back" },
-          ],
-        },
-      },
-      {
-        label: "Jira",
-        submenu: {
-          title: "Jira",
-          items: [
-            { label: "List tickets", action: () => runCli(["jira", "tickets"]) },
-            { label: "Set or replace credentials", action: setJiraCredentials },
-            { label: "Remove credentials", action: removeJiraCredentials },
-            { label: "Back" },
-          ],
-        },
-      },
+      { label: "Status", action: () => runCli(["status"]) },
+      { label: "GitHub", submenu: buildGitHubMenu() },
+      { label: "Snyk", submenu: buildSnykMenu() },
+      { label: "Jira", submenu: buildJiraMenu() },
       {
         label: "Git",
-        submenu: {
-          title: "Git",
-          items: [
-            { label: "List dirty repositories", action: () => runCli(["git", "dirty"]) },
-            { label: "Show full git status", action: () => runCli(["git", "status"]) },
-            { label: "Back" },
-          ],
-        },
+        submenu: { title: "Git", items: [
+          { label: "List dirty repositories", action: () => runCli(["git", "dirty"]) },
+          { label: "Show full git status", action: () => runCli(["git", "status"]) },
+          { label: "Back" },
+        ] },
       },
       {
         label: "Configuration",
-        submenu: {
-          title: "Configuration",
-          items: [
-            {
-              label: "View configuration",
-              action: () => process.stdout.write(buildConfigurationSummary()),
-            },
-            { label: "Edit git search roots", action: editSearchRoots },
-            { label: "Reset git search roots", action: clearSearchRootsSetting },
-            { label: "Back" },
-          ],
-        },
+        submenu: { title: "Configuration", items: [
+          { label: "View configuration", action: () => { process.stdout.write(buildConfigurationSummary()); } },
+          { label: "Edit git search roots", action: editSearchRoots },
+          { label: "Reset git search roots", action: clearSearchRootsSetting },
+          { label: "Back" },
+        ] },
       },
       { label: "Exit" },
     ],

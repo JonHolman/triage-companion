@@ -96,8 +96,8 @@ export function parseMenuInput(input: string, limit = Number.POSITIVE_INFINITY):
       continue;
     }
 
-    if (character === "q") {
-      keys.push({ name: "q", sequence: "q" });
+    if (["d", "m", "n", "p", "q"].includes(character)) {
+      keys.push({ name: character, sequence: character });
       index += 1;
       continue;
     }

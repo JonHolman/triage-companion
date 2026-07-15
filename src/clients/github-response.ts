@@ -201,9 +201,10 @@ export async function githubErrorMessage(response: Response): Promise<string> {
     if (message === undefined) {
       return "GitHub API error response must include a message string.";
     }
-    return hasCanonicalTextValue(message)
-      ? message
-      : "GitHub API error response message must be non-empty text without surrounding whitespace or control characters.";
+    const trimmedMessage = message.trim();
+    return trimmedMessage.length > 0
+      ? inlineErrorText(trimmedMessage)
+      : "GitHub API error response message was empty.";
   } catch {
     return inlineErrorText(text);
   }

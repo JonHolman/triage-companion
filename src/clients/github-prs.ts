@@ -16,6 +16,7 @@ import {
   requireGitBinary,
   runGitCommand,
 } from "../git/executor.ts";
+import { inlineErrorText } from "../text.ts";
 import {
   GITHUB_API_HOST,
 } from "./github-constants.ts";
@@ -65,6 +66,34 @@ import {
 } from "./github-remotes.ts";
 
 const DEFAULT_IGNORED_BRANCH_SET = new Set<string>(DEFAULT_IGNORED_PR_BRANCHES);
+const GIT_REMOTE_COMMAND_TIMEOUT_MS = 30_000;
+
+function loadRemoteRefs(
+  gitBinary: string,
+  repositoryPath: string,
+  repositoryFullName: string,
+  refPatterns: readonly string[],
+): GitHubRef[] {
+  try {
+    return remoteRefs(
+      runGitCommand(gitBinary, [
+        "-C",
+        repositoryPath,
+        "ls-remote",
+        "origin",
+        ...refPatterns,
+      ], { timeout: GIT_REMOTE_COMMAND_TIMEOUT_MS }),
+    );
+  } catch (error) {
+    const message = inlineErrorText(error instanceof Error ? error.message : String(error));
+    throw new Error(
+      `Could not read GitHub remote refs for ${repositoryFullName}. ` +
+        "Check that the local clone's origin exists and is readable, or narrow Git search roots if this local clone should not be scanned. " +
+        message,
+      { cause: error },
+    );
+  }
+}
 
 async function loadPullRequestSummary(
   repositoryFullName: string,
@@ -78,9 +107,16 @@ async function loadPullRequestSummary(
   );
 
   if (!response.ok) {
-    throw new Error(
-      `GitHub API HTTP ${response.status} while checking pull request #${pullRequestNumberValue} in ${repositoryFullName}: ${await githubErrorMessage(response)}`,
-    );
+    const message = await githubErrorMessage(response);
+    const baseMessage =
+      `GitHub API HTTP ${response.status} while checking pull request #${pullRequestNumberValue} in ${repositoryFullName}: ${message}`;
+    if (response.status === 403) {
+      throw new Error(
+        `${baseMessage}. The GitHub token being used cannot read this repository's pull requests. Authorize SSO for the organization or use a token from an account with repository access; narrow Git search roots if this local clone should not be scanned.`,
+      );
+    }
+
+    throw new Error(baseMessage);
   }
 
   const body = await parseGitHubJSON(response, "GitHub pull request response");
@@ -238,27 +274,15 @@ export async function listMyOpenPullRequests({
 
     const repositoryFullName = resolvedFullName;
     const repositoryURL = `https://github.com/${repositoryFullName}`;
-    const branchRefs: GitHubRef[] = remoteRefs(
-      runGitCommand(gitBinary, [
-        "-C",
-        repositoryPath,
-        "ls-remote",
-        "origin",
-        "refs/heads/*",
-      ]),
-    );
+    const branchRefs = loadRemoteRefs(gitBinary, repositoryPath, repositoryFullName, ["refs/heads/*"]);
     for (const ref of branchRefs) {
       branchName(ref.ref);
     }
-    const pullRefs: GitHubRef[] = remoteRefs(
-      runGitCommand(gitBinary, [
-        "-C",
-        repositoryPath,
-        "ls-remote",
-        "origin",
-        "refs/pull/*/head",
-        "refs/pull/*/merge",
-      ]),
+    const pullRefs = loadRemoteRefs(
+      gitBinary,
+      repositoryPath,
+      repositoryFullName,
+      ["refs/pull/*/head", "refs/pull/*/merge"],
     );
     for (const ref of pullRefs) {
       validatePullRequestRef(ref.ref);

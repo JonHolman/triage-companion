@@ -137,7 +137,7 @@ describe("github token and authenticated login", { concurrency: false }, () => {
     await withMockFetch(() => jsonResponse({ message: "   " }, { status: 401 }), async () => {
       await assert.rejects(
         () => resolveAuthenticatedLogin(),
-        /GitHub API HTTP 401: GitHub API error response message must be non-empty text without surrounding whitespace or control characters/,
+        /GitHub API HTTP 401: GitHub API error response message was empty/,
       );
     });
   });

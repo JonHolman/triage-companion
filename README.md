@@ -52,14 +52,17 @@ Run `triage-companion --help` to display the standard CLI help.
 Run `triage-companion menu` to open the same menu explicitly.
 Use the arrow keys to move, `Enter` to select, and `Esc` or `q` to go back.
 The menu exposes status, GitHub, Snyk, Jira, Git, and configuration actions.
+When GitHub, Snyk, or Jira is not configured, that service menu puts its `Credentials` submenu before commands that call the service.
+Menu list views show up to 10 items at a time. Use Up/Down to choose an item, `n` and `p` to page, and `Esc` or `q` to leave the list.
 
 The menu can:
 
 - View status without exposing secrets.
-- Set, replace, or remove GitHub, Snyk, and Jira credentials.
+- Set, replace, or remove GitHub, Snyk, and Jira credentials from separate `Credentials` submenus.
 - Set or reset the Snyk US-hosted REST API base URL.
 - View configured values without printing secret values.
 - Inspect GitHub notifications, failed GitHub Actions workflows, GitHub security alerts, Snyk issues, severity-filtered Snyk issues, Jira tickets, and Git status.
+- Mark or dismiss a selected GitHub notification from the notification list with `m` or `d`; both mark the notification read so it does not appear in the next default unread notification run.
 - List your open GitHub PRs normally, with a GitHub login override, or with a custom author regex.
 - Edit Git search roots and clear stored roots back to the defaults when no env override is set.
 
@@ -140,9 +143,12 @@ When you pass explicit local paths to `github my-open-prs`, each path must exist
 When you pass `--github-login`, use the exact GitHub login with no surrounding whitespace.
 When you pass `--search-roots` to `github my-open-prs`, use a JSON array of paths and those roots override the default discovery roots for that invocation. Blank values are invalid; pass `[]` to disable discovery for that run.
 Home-relative search roots such as `~/repos` are supported there too.
+If `github my-open-prs` reports a `403` while checking a pull request in a scanned repository, authorize SSO for that organization or use a token from an account with repository access; narrow the Git search roots if that local clone should not be scanned.
+If it reports that GitHub remote refs cannot be read, fix the clone's `origin` access or narrow Git search roots to exclude stale or inaccessible clones.
 If multiple pull requests share the same commit SHA, `github my-open-prs` matches them by the pull request head branch instead of attributing every matching SHA to the same local branch.
 Set `TRIAGE_COMPANION_GITHUB_PR_IGNORE_BRANCHES` to `[]` if you do not want the default `main`, `master`, and `production` branch exclusions.
 `github mark-read` expects the numeric notification thread ID exactly as shown, with no surrounding whitespace.
+GitHub notification rows are built from the notification payload first; if optional pull request detail enrichment returns `403` or `404`, the row still links to the pull request and omits the PR state/author enrichment.
 
 ### Snyk
 
@@ -159,7 +165,8 @@ You can persist a regional value with `triage-companion snyk api-base-url <url>`
 If `TRIAGE_COMPANION_SNYK_API_BASE_URL` is set, that environment override still takes precedence over the saved value.
 Use only the bare Snyk REST API base URL; do not include usernames, tokens, other credentials, control characters, or path dot segments like `/./` or `/../` in the URL.
 Non-US Snyk REST API URLs are rejected before the client makes an API request, and issue links are constructed locally against the matching US Snyk app host instead of trusting link values from the API.
-Malformed Snyk issue rows that are missing the project relationship, the issue key, timestamps, or that reference a project missing from the project list, are rejected instead of being grouped under an unknown project.
+Malformed Snyk issue rows that are missing the project relationship, issue key, or timestamps are rejected.
+If Snyk returns an open issue for a project that is no longer returned by the projects endpoint, the issue is still listed with an `Unavailable project <id>` project label.
 
 Minimum permissions:
 
@@ -177,6 +184,7 @@ Use the site root from the browser address bar as the base URL.
 For example, if the browser shows `https://your-company.atlassian.net/browse/ABC-123`, the base URL is `https://your-company.atlassian.net`.
 For scoped Atlassian API tokens, also pass the site's Cloud ID. The CLI keeps the site URL for ticket links and calls Jira through `https://api.atlassian.com/ex/jira/{cloudId}` for API requests.
 You can retrieve the Cloud ID from `https://<your-company>.atlassian.net/_edge/tenant_info`.
+For Jira Data Center or Server base URLs outside `*.atlassian.net`, the saved token is sent as a Jira personal access token with Bearer auth and the saved email is kept only as the account label.
 Do not include usernames, tokens, other credentials, control characters, or path dot segments like `/./` or `/../` in the Jira base URL.
 If USA-only residency is required, confirm the Atlassian site data residency policy with your site admin before saving Jira credentials.
 The base URL, email, token, and optional Cloud ID are persisted locally after you save them.
@@ -260,6 +268,7 @@ Supported environment variables:
 `github my-open-prs` uses local `git config user.name` and `user.email` as the branch author identity. If both values are unavailable, it uses the GitHub login inferred from the configured GitHub token when available.
 Persisted GitHub and Snyk tokens take precedence over their token environment variables.
 Removing saved credentials does not unset environment-based credentials; if the corresponding env vars are still set, they remain effective after the saved values are removed.
+Credential removal from the interactive menu requires typing `remove` at a confirmation prompt.
 Credential env overrides with surrounding whitespace, blank values, or control characters are treated as invalid, so related commands fail until you fix or unset them.
 Saved GitHub/Snyk tokens and saved Jira email/token values follow the same rule and are rejected instead of being trimmed silently.
 If `secrets.json` cannot be read or parsed, commands report that configuration error instead of using environment tokens or default persisted settings.
@@ -284,9 +293,13 @@ GitHub `failed-workflows` and `security-alerts` also fail if GitHub returns item
 GitHub `notifications` likewise fails if an unread-only fetch returns read notifications, instead of silently mixing them into the default unread view.
 CheckSuite and Discussion notifications have no per-item GitHub web page, so their links point to the repository Actions and Discussions pages.
 Raw GitHub, Jira, and Snyk API error text, and direct GitHub, Jira, and Snyk fetch/network failure text, are flattened and control characters are escaped before they are shown in terminal output.
+Git subprocesses run with terminal prompting disabled so commands fail clearly instead of waiting for credentials.
 Local Git repository paths with control characters are rejected instead of being rendered into `git` and `github my-open-prs` output.
 Malformed local Git branch headers and changed paths with control characters are rejected instead of being rendered into `git` output.
 Top-level CLI and menu error wrappers, menu setup/config repair notices, and `status` / `config show` error lines also escape control characters before writing terminal output.
+In an interactive terminal, commands that are still running after a short delay print `Still running: <command>` to stderr, then append one dot per second until they finish.
+Menu text prompts treat `Esc` and a submitted `q` as cancel; blank input follows the prompt text, either canceling or using the documented default.
+JSON output remains on stdout.
 
 ## Commands
 

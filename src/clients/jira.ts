@@ -32,12 +32,13 @@ const ACCOUNT_TOKEN = apiTokenStorage.account;
 const ACCOUNT_CLOUD_ID = cloudIDStorage.account;
 const MAX_PAGE_SIZE = 100;
 const ISSUE_FIELDS = "summary,status,priority,issuetype,reporter,updated,resolution";
-const JQL =
-  "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC";
+const JQL = "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC";
 const USER_AGENT = "triage-companion";
 const jiraPermissionText = getServiceDefinition("jira").status.permissionRequirements
   .map((requirement) => `${requirement.feature}: ${requirement.permissions.join(", ")}`)
   .join("; ");
+
+type JiraAPIKind = "cloud" | "data-center";
 
 interface JiraSettings {
   baseURL: string;
@@ -88,12 +89,7 @@ function resolveSettings(): JiraSettings | null {
   const apiToken = validateConfiguredText(rawApiToken, "Jira API token");
   const cloudID = rawCloudID === null ? null : validateCloudID(rawCloudID);
 
-  return {
-    baseURL: base,
-    email,
-    apiToken,
-    cloudID,
-  };
+  return { baseURL: base, email, apiToken, cloudID };
 }
 
 export function hasCredentials(): boolean {
@@ -131,8 +127,10 @@ export function removeCredentials(): void {
   ]);
 }
 
-function authHeader(email: string, token: string): string {
-  return `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`;
+function authHeader(settings: JiraSettings): string {
+  return jiraAPIKind(settings) === "data-center"
+    ? `Bearer ${settings.apiToken}`
+    : `Basic ${Buffer.from(`${settings.email}:${settings.apiToken}`).toString("base64")}`;
 }
 
 function validateCloudID(value: string): string {
@@ -148,6 +146,21 @@ function jiraAPIBaseURL(settings: JiraSettings): string {
   return settings.cloudID === null
     ? settings.baseURL
     : `https://api.atlassian.com/ex/jira/${settings.cloudID}`;
+}
+
+function jiraAPIKind(settings: JiraSettings): JiraAPIKind {
+  if (settings.cloudID !== null) {
+    return "cloud";
+  }
+
+  const hostname = new URL(settings.baseURL).hostname.toLowerCase();
+  return hostname.endsWith(".atlassian.net") ? "cloud" : "data-center";
+}
+
+function jiraSearchPath(settings: JiraSettings): string {
+  return jiraAPIKind(settings) === "data-center"
+    ? "/rest/api/2/search"
+    : "/rest/api/3/search/jql";
 }
 
 function isNamedFieldRecord(value: unknown): value is Record<string, unknown> {
@@ -274,10 +287,37 @@ function validateNextPageToken(body: Record<string, unknown>): string | null {
   return token;
 }
 
+function optionalNonNegativeInteger(value: unknown, label: string): number | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${label} must be a non-negative integer.`);
+  }
+
+  return value;
+}
+
+function htmlTitle(text: string): string | null {
+  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(text);
+  if (!match) {
+    return null;
+  }
+
+  const title = match[1]?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() ?? "";
+  return title.length > 0 ? inlineErrorText(title) : null;
+}
+
 async function jiraErrorMessage(response: Response): Promise<string> {
   const text = await response.text();
   if (!text.trim()) {
     return "Jira API error response body was empty.";
+  }
+  if (response.headers.get("content-type")?.toLowerCase().includes("text/html")) {
+    const title = htmlTitle(text);
+    return title === null
+      ? "Jira API returned HTML instead of JSON."
+      : `Jira API returned HTML instead of JSON: ${title}.`;
   }
 
   try {
@@ -334,7 +374,9 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
 
   const issues: JiraTicket[] = [];
   let nextPageToken: string | null = null;
+  let startAt = 0;
   const seenPageTokens = new Set<string>();
+  const apiKind = jiraAPIKind(settings);
 
   while (true) {
     const params = new URLSearchParams({
@@ -342,18 +384,20 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
       fields: ISSUE_FIELDS,
       maxResults: String(MAX_PAGE_SIZE),
     });
-    if (nextPageToken !== null) {
+    if (apiKind === "data-center") {
+      params.set("startAt", String(startAt));
+    } else if (nextPageToken !== null) {
       params.set("nextPageToken", nextPageToken);
     }
 
-    const url = `${jiraAPIBaseURL(settings)}/rest/api/3/search/jql?${params}`;
+    const url = `${jiraAPIBaseURL(settings)}${jiraSearchPath(settings)}?${params}`;
     let response: Response;
     try {
       response = await fetch(url, {
         method: "GET",
         redirect: "error",
         headers: {
-          Authorization: authHeader(settings.email, settings.apiToken),
+          Authorization: authHeader(settings),
           Accept: "application/json",
           "User-Agent": USER_AGENT,
         },
@@ -375,7 +419,6 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
     if (!isRecord(body) || !Array.isArray(rawIssues)) {
       throw new Error("Jira search response must include an issues array.");
     }
-    const responseNextPageToken = validateNextPageToken(body);
 
     const issueRecords = rawIssues.filter(isRecord);
     if (issueRecords.length !== rawIssues.length) {
@@ -424,18 +467,32 @@ export async function listOpenTickets(): Promise<JiraTicket[]> {
       });
     }
 
-    if (responseNextPageToken === null) {
+    if (apiKind === "data-center") {
+      const responseStartAt = optionalNonNegativeInteger(body.startAt, "Jira search response startAt");
+      const total = optionalNonNegativeInteger(body.total, "Jira search response total");
+      if (responseStartAt !== null && responseStartAt !== startAt) {
+        throw new Error("Jira search response startAt did not match the requested page.");
+      }
+
+      startAt += rawIssues.length;
+      if (rawIssues.length === 0 || rawIssues.length < MAX_PAGE_SIZE || (total !== null && startAt >= total)) {
+        break;
+      }
+      continue;
+    }
+
+    nextPageToken = validateNextPageToken(body);
+    if (nextPageToken === null) {
       break;
     }
     if (rawIssues.length === 0) {
       throw new Error("Jira search response returned an empty page before pagination finished.");
     }
-    if (seenPageTokens.has(responseNextPageToken)) {
+    if (seenPageTokens.has(nextPageToken)) {
       throw new Error("Jira search pagination repeated a previously fetched page.");
     }
 
-    seenPageTokens.add(responseNextPageToken);
-    nextPageToken = responseNextPageToken;
+    seenPageTokens.add(nextPageToken);
   }
 
   return issues.sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime());

@@ -48,7 +48,7 @@ describe("parseMenuInput", () => {
     });
   });
 
-  test("parses return, q, and control-c", () => {
+  test("parses return, menu command keys, and control-c", () => {
     assert.deepEqual(parseMenuInput("\r"), {
       keys: [{ name: "return", sequence: "\r" }],
       remainder: "",
@@ -59,6 +59,15 @@ describe("parseMenuInput", () => {
     });
     assert.deepEqual(parseMenuInput("q"), {
       keys: [{ name: "q", sequence: "q" }],
+      remainder: "",
+    });
+    assert.deepEqual(parseMenuInput("npmd"), {
+      keys: [
+        { name: "n", sequence: "n" },
+        { name: "p", sequence: "p" },
+        { name: "m", sequence: "m" },
+        { name: "d", sequence: "d" },
+      ],
       remainder: "",
     });
     assert.deepEqual(parseMenuInput("\u0003"), {

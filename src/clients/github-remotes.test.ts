@@ -187,7 +187,13 @@ support.describeWithExecutableWrapper("github.ts pull request remotes", { concur
         listMyOpenPullRequests({
           repositoryPaths: [context.repoDir],
         }),
-      /unable to access remote refs/,
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        assert.match(message, /Could not read GitHub remote refs for octocat\/hello-world/);
+        assert.match(message, /unable to access remote refs/);
+        assert.match(message, /narrow Git search roots/);
+        return true;
+      },
     );
   });
 

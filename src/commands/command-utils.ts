@@ -5,16 +5,81 @@ import { parseSearchRootsInput } from "../config.ts";
 import type { ServiceModel } from "../config-model.ts";
 import { dim } from "../format.ts";
 
+const ACTIVITY_NOTICE_DELAY_MS = 750;
+const ACTIVITY_DOT_INTERVAL_MS = 1000;
+export const SUPPRESS_ACTIVITY_ENV = "TRIAGE_COMPANION_SUPPRESS_ACTIVITY";
+
+interface ActivityNotice {
+  stop: () => void;
+}
+
+interface ActivityNoticeOptions {
+  immediate?: boolean;
+}
+
+export function startActivityNotice(
+  commandLabel: string,
+  { immediate = false }: ActivityNoticeOptions = {},
+): ActivityNotice | null {
+  if (!process.stderr.isTTY || process.env[SUPPRESS_ACTIVITY_ENV] === "1") {
+    return null;
+  }
+
+  let started = false;
+  let stopped = false;
+  let dotTimer: NodeJS.Timeout | null = null;
+
+  const start = (): void => {
+    started = true;
+    process.stderr.write(dim(`Still running: ${commandLabel}`));
+    dotTimer = setInterval(() => {
+      process.stderr.write(dim("."));
+    }, ACTIVITY_DOT_INTERVAL_MS);
+    dotTimer.unref();
+  };
+  const noticeTimer = immediate
+    ? null
+    : setTimeout(start, ACTIVITY_NOTICE_DELAY_MS);
+  if (noticeTimer === null) {
+    start();
+  }
+  noticeTimer?.unref();
+
+  return {
+    stop: () => {
+      if (stopped) {
+        return;
+      }
+
+      stopped = true;
+      if (noticeTimer !== null) {
+        clearTimeout(noticeTimer);
+      }
+      if (dotTimer !== null) {
+        clearInterval(dotTimer);
+      }
+      if (started) {
+        process.stderr.write("\n");
+      }
+    },
+  };
+}
+
 export async function runCommand(
   commandLabel: string,
   action: () => Promise<void> | void,
+  options: ActivityNoticeOptions = {},
 ): Promise<void> {
+  const activityNotice = startActivityNotice(commandLabel, options);
   try {
     await action();
   } catch (err) {
+    activityNotice?.stop();
     const message = err instanceof Error ? err.message : String(err);
     process.stderr.write(`triage-companion error in ${commandLabel}: ${inlineErrorText(message)}\n`);
     process.exitCode = 1;
+  } finally {
+    activityNotice?.stop();
   }
 }
 

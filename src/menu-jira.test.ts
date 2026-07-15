@@ -35,7 +35,8 @@ describe("menu Jira actions", () => {
 
     const menu = buildMenuTree();
     const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const setCredentials = jiraMenu?.items.find((item) => item.label === "Set or replace credentials");
+    const credentialsMenu = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
+    const setCredentials = credentialsMenu?.items.find((item) => item.label === "Set or replace credentials");
 
     assert.ok(setCredentials?.action);
 
@@ -106,7 +107,8 @@ describe("menu Jira actions", () => {
 
     const menu = buildMenuTree();
     const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const setCredentials = jiraMenu?.items.find((item) => item.label === "Set or replace credentials");
+    const credentialsMenu = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
+    const setCredentials = credentialsMenu?.items.find((item) => item.label === "Set or replace credentials");
 
     assert.ok(setCredentials?.action);
 
@@ -193,7 +195,8 @@ describe("menu Jira actions", () => {
 
     const menu = buildMenuTree();
     const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const setCredentials = jiraMenu?.items.find((item) => item.label === "Set or replace credentials");
+    const credentialsMenu = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
+    const setCredentials = credentialsMenu?.items.find((item) => item.label === "Set or replace credentials");
 
     assert.ok(setCredentials?.action);
 

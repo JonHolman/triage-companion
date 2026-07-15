@@ -196,7 +196,7 @@ export function register(program: Command): void {
               headers: ["Link", "Repo", "Branch", "PR", "Author", "Path"],
             }),
           );
-        });
+        }, { immediate: true });
       },
     );
 

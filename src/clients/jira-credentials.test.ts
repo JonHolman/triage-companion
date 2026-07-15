@@ -146,6 +146,34 @@ describe("jira credentials", { concurrency: false }, () => {
     }
   });
 
+  test("uses bearer token auth and Jira v2 search for Data Center base URLs", async () => {
+    const originalFetch = global.fetch;
+    saveCredentials("https://jira.example.gov", "stored@example.com", "stored-token");
+
+    global.fetch = async (input: URL | Request | string, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const headers = init?.headers as Record<string, string>;
+
+      assert.equal(url, support.dataCenterSearchURL("https://jira.example.gov"));
+      assert.equal(headers.Authorization, "Bearer stored-token");
+      assert.equal(init?.redirect, "error");
+
+      return support.createResponse({
+        startAt: 0,
+        maxResults: 100,
+        total: 1,
+        issues: [support.searchIssue("ABC-123")],
+      });
+    };
+
+    try {
+      const tickets = await listOpenTickets();
+      assert.equal(tickets[0]?.url, "https://jira.example.gov/browse/ABC-123");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   test("uses the Atlassian scoped-token API route when a Cloud ID is configured", async () => {
     const originalFetch = global.fetch;
     saveCredentials(

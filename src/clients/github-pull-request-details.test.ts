@@ -175,6 +175,44 @@ describe("github pull request notification details", { concurrency: false }, () 
     });
   });
 
+  test("renders pull request notifications when optional detail lookup returns 404", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    const routes = routeHandler(new Map([
+      [notificationsUrl(1), () => jsonResponse([pullRequestNotification("Inaccessible PR details", {
+        reason: "author",
+        updated_at: "2026-01-01T00:00:00Z",
+      })])],
+      [pullDetailURL, () => jsonResponse({ message: "Not Found" }, { status: 404 })],
+    ]));
+
+    await withMockFetch(routes, async () => {
+      const notifications = await listNotifications({ maxResults: 1 });
+      assert.equal(notifications.length, 1);
+      assert.equal(notifications[0]?.webURL, "https://github.com/octocat/hello-world/pull/1");
+      assert.equal(notifications[0]?.subjectState, null);
+      assert.equal(notifications[0]?.subjectMerged, null);
+      assert.equal(notifications[0]?.subjectAuthorLogin, null);
+    });
+  });
+
+  test("renders pull request notifications when optional detail lookup returns 403", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    const routes = routeHandler(new Map([
+      [notificationsUrl(1), () => jsonResponse([pullRequestNotification("Forbidden PR details", {
+        reason: "author",
+        updated_at: "2026-01-01T00:00:00Z",
+      })])],
+      [pullDetailURL, () => jsonResponse({ message: "Resource not accessible by personal access token" }, { status: 403 })],
+    ]));
+
+    await withMockFetch(routes, async () => {
+      const notifications = await listNotifications({ maxResults: 1 });
+      assert.equal(notifications.length, 1);
+      assert.equal(notifications[0]?.webURL, "https://github.com/octocat/hello-world/pull/1");
+      assert.equal(notifications[0]?.subjectState, null);
+    });
+  });
+
   test("rejects pull request detail responses missing author logins", async () => {
     process.env.GITHUB_TOKEN = "github-env-token";
     await expectPullDetailRejection({ state: "open", merged: false, user: {} });

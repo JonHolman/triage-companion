@@ -83,6 +83,11 @@ async function fetchNotifications({
             `SSO authorization required. Visit: ${inlineErrorText(urlMatch?.[1] || "(check GitHub settings)")}`,
           );
         }
+        throw new Error(
+          `GitHub API HTTP 403: ${await githubErrorMessage(res)}. ` +
+            "GitHub notifications require a classic personal access token with the notifications scope; " +
+            "fine-grained personal access tokens are not supported by GitHub notification endpoints.",
+        );
       }
 
       if (!res.ok) {
@@ -117,7 +122,7 @@ async function fetchNotifications({
 // error instead of being swallowed.
 async function collectByIdInBatches<I, V>(
   refs: readonly I[],
-  resolveRef: (ref: I) => Promise<{ id: string; value: V }>,
+  resolveRef: (ref: I) => Promise<{ id: string; value: V } | null>,
 ): Promise<Map<string, V>> {
   const byId = new Map<string, V>();
   const BATCH = 8;
@@ -130,6 +135,9 @@ async function collectByIdInBatches<I, V>(
           : new Error(inlineErrorText(String(entry.reason)));
       }
 
+      if (entry.value === null) {
+        continue;
+      }
       byId.set(entry.value.id, entry.value.value);
     }
   }
@@ -159,6 +167,9 @@ async function fetchPullRequestDetails(
       token,
       `Could not fetch notification pull request ${id}`,
     );
+    if (response.status === 403 || response.status === 404) {
+      return null;
+    }
     if (!response.ok) {
       throw new Error(
         `GitHub API HTTP ${response.status} for notification pull request ${id}: ${await githubErrorMessage(response)}`,

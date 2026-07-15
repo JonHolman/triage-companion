@@ -110,6 +110,36 @@ describe("jira API errors", { concurrency: false }, () => {
     );
   });
 
+  test("summarizes Jira HTML API errors without dumping the page", async () => {
+    saveCredentials("https://stored.atlassian.net", "stored@example.com", "stored-token");
+
+    await withMockFetch(
+      () =>
+        new Response(
+          "<html><head><title>Unauthorized (401)</title></head><body><h1>Unauthorized</h1><p>Basic Authentication Failure</p></body></html>",
+          {
+            status: 401,
+            headers: { "Content-Type": "text/html;charset=UTF-8" },
+          },
+        ),
+      async () => {
+        await assert.rejects(
+          () => listOpenTickets(),
+          (error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            assert.match(
+              message,
+              /Jira API error \(401\): Jira API returned HTML instead of JSON: Unauthorized \(401\)\./,
+            );
+            assert.ok(!message.includes("<html>"));
+            assert.ok(!message.includes("Basic Authentication Failure"));
+            return true;
+          },
+        );
+      },
+    );
+  });
+
   test("rejects non-object Jira API error payloads", async () => {
     saveCredentials("https://stored.atlassian.net", "stored@example.com", "stored-token");
 

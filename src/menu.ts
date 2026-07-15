@@ -1,12 +1,12 @@
 import { inlineErrorText } from "./commands/command-utils.ts";
-import { ESCAPE, parseMenuInput } from "./menu-keys.ts";
+import { isMenuInterruptKey, readMenuKey } from "./menu-input.ts";
 import { pause } from "./menu-prompts.ts";
 import { buildMenuTree } from "./menu-tree.ts";
+export { ESCAPE_KEY_TIMEOUT_MS, isMenuInterruptKey, readMenuKey } from "./menu-input.ts";
 import {
   MenuActionReportedError,
   MenuInterruptedError,
   type MenuItem,
-  type MenuKey,
   type MenuNode,
 } from "./menu-types.ts";
 
@@ -24,69 +24,6 @@ function renderMenu(node: MenuNode, selected: number): void {
   }
   console.log("");
   console.log("Use arrow keys and Enter. Esc or q goes back.");
-}
-
-export function isMenuInterruptKey(key: MenuKey): boolean {
-  return key.ctrl === true && key.name === "c";
-}
-
-// A bare ESC is ambiguous: it is either the Escape key or the first byte of
-// an arrow-key sequence split across stdin chunks. Only after this quiet
-// period is it treated as the Escape key.
-export const ESCAPE_KEY_TIMEOUT_MS = 500;
-
-export function readMenuKey(): Promise<MenuKey> {
-  return new Promise<MenuKey>((resolve) => {
-    let pendingInput = "";
-    let escapeTimer: NodeJS.Timeout | undefined;
-
-    const armEscapeTimer = (): void => {
-      if (!pendingInput) {
-        return;
-      }
-
-      escapeTimer = setTimeout(() => {
-        escapeTimer = undefined;
-        const wasBareEscape = pendingInput === ESCAPE;
-        pendingInput = "";
-        if (wasBareEscape) {
-          process.stdin.removeListener("data", onData);
-          resolve({ name: "escape", sequence: ESCAPE });
-        }
-      }, ESCAPE_KEY_TIMEOUT_MS);
-    };
-
-    const onData = (chunk: Buffer | string): void => {
-      if (escapeTimer) {
-        clearTimeout(escapeTimer);
-        escapeTimer = undefined;
-      }
-
-      const { keys, remainder } = parseMenuInput(pendingInput + String(chunk), 1);
-      const key = keys[0];
-      if (!key) {
-        pendingInput = remainder;
-        armEscapeTimer();
-        process.stdin.once("data", onData);
-        return;
-      }
-
-      pendingInput = "";
-      if (remainder) {
-        // Input typed ahead of the resolved key is parked on the paused
-        // stream so the next reader — another menu key read or a prompt —
-        // receives it instead of it being emitted to nobody and lost.
-        process.stdin.pause();
-        process.stdin.unshift(Buffer.from(remainder));
-      }
-      resolve(key);
-    };
-
-    process.stdin.once("data", onData);
-    // Prompts and parked type-ahead leave stdin explicitly paused, and a
-    // paused stream never delivers the next key.
-    process.stdin.resume();
-  });
 }
 
 async function activateItem(item: MenuItem): Promise<void> {
@@ -163,6 +100,12 @@ async function openMenu(node: MenuNode): Promise<void> {
           await activateItem(item);
         } finally {
           process.stdin.setRawMode(true);
+        }
+        if (node.refresh) {
+          const refreshed = node.refresh();
+          node.title = refreshed.title;
+          node.items = refreshed.items;
+          selected = Math.min(selected, node.items.length - 1);
         }
 
         continue;

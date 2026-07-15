@@ -9,6 +9,7 @@ export interface MenuItem {
 export interface MenuNode {
   title: string;
   items: MenuItem[];
+  refresh?: () => MenuNode;
 }
 
 export interface MenuKey {

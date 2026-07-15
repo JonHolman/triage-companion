@@ -128,3 +128,14 @@ export function searchURL(baseURL: string, nextPageToken?: string): string {
 
   return `${baseURL}/rest/api/3/search/jql?${params}`;
 }
+
+export function dataCenterSearchURL(baseURL: string, startAt: number = 0): string {
+  const params = new URLSearchParams({
+    jql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
+    fields: "summary,status,priority,issuetype,reporter,updated,resolution",
+    maxResults: "100",
+    startAt: String(startAt),
+  });
+
+  return `${baseURL}/rest/api/2/search?${params}`;
+}

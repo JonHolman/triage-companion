@@ -114,7 +114,7 @@ describe("snyk issues", { concurrency: false }, () => {
     );
   });
 
-  test("rejects issues referencing unknown projects even when a legacy project_name attribute is present", async () => {
+  test("labels missing projects even when a legacy project_name attribute is present", async () => {
     process.env.SNYK_TOKEN = "token-123";
 
     await support.withSnykRoutes(
@@ -130,10 +130,8 @@ describe("snyk issues", { concurrency: false }, () => {
         },
       },
       async () => {
-        await assert.rejects(
-          () => listOpenIssues(),
-          /Snyk issue issue-1 references unknown project project-9/,
-        );
+        const snapshot = await listOpenIssues();
+        assert.equal(snapshot.issues[0]?.projectName, "Unavailable project project-9");
       },
     );
   });

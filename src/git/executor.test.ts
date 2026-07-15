@@ -136,4 +136,39 @@ describe("git executor", () => {
 
     assert.equal(runGitCommand(fakeGit, ["config", "--get", "user.name"]), "value   ");
   });
+
+  test("runs git commands without terminal prompting", () => {
+    const fakeGit = path.join(testDir, "fake-git");
+    fs.writeFileSync(
+      fakeGit,
+      "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\necho 'git version 2.0.0'\nelif [ \"$GIT_TERMINAL_PROMPT\" = \"0\" ]; then\nprintf ok\nelse\nexit 1\nfi\n",
+      { mode: 0o755 },
+    );
+
+    assert.equal(runGitCommand(fakeGit, ["status"]), "ok");
+  });
+
+  test("adds command context to git failures while preserving stderr", () => {
+    const fakeGit = path.join(testDir, "fake-git");
+    fs.writeFileSync(
+      fakeGit,
+      "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then\necho 'git version 2.0.0'\nelse\nprintf 'fatal: bad repo\\n' >&2\nexit 1\nfi\n",
+      { mode: 0o755 },
+    );
+
+    assert.throws(
+      () => runGitCommand(fakeGit, ["-C", testDir, "status"]),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Git command failed/);
+        assert.match(error.message, /git-executor-/);
+        assert.match(error.message, /status/);
+        assert.equal(
+          Buffer.from((error as Error & { stderr: Uint8Array }).stderr).toString("utf-8"),
+          "fatal: bad repo\n",
+        );
+        return true;
+      },
+    );
+  });
 });

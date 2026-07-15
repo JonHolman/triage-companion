@@ -163,6 +163,16 @@ export function isMissingRepositoryContextError(error: unknown): boolean {
 
 export function isMissingLocalGitObjectError(error: unknown): boolean {
   const message = gitCommandErrorText(error);
+  if (
+    error instanceof Error &&
+    "status" in error &&
+    error.status === 1 &&
+    /\bcat-file -e\b/.test(error.message) &&
+    message.length === 0
+  ) {
+    return true;
+  }
+
   return /not a valid object name/i.test(message) ||
     /could not get object info/i.test(message) ||
     /bad object/i.test(message) ||

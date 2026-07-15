@@ -17,11 +17,24 @@ function normalizeOutput(text: string | null | undefined): string {
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
 }
 
+function isolatedEnv(configDir: string): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    TRIAGE_COMPANION_CONFIG_DIR: configDir,
+  };
+}
+
 function runEntryPoint(args: string[]): SpawnSyncReturns<string> {
-  return spawnSync(process.execPath, [ENTRY_POINT, ...args], {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-  });
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-entrypoint-config-"));
+  try {
+    return spawnSync(process.execPath, [ENTRY_POINT, ...args], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      env: isolatedEnv(configDir),
+    });
+  } finally {
+    fs.rmSync(configDir, { recursive: true, force: true });
+  }
 }
 
 function toTclLiteral(value: string): string {
@@ -29,6 +42,7 @@ function toTclLiteral(value: string): string {
 }
 
 function runEntryPointWithTTY(args: string[]): SpawnSyncReturns<string> {
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-entrypoint-tty-config-"));
   const spawnCommand = [process.execPath, ENTRY_POINT, ...args]
     .map(toTclLiteral)
     .join(" ");
@@ -44,10 +58,15 @@ function runEntryPointWithTTY(args: string[]): SpawnSyncReturns<string> {
     'puts "exit:[lindex $waitResult 3]"',
   ].join("; ");
 
-  return spawnSync("expect", ["-c", expectScript], {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-  });
+  try {
+    return spawnSync("expect", ["-c", expectScript], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      env: isolatedEnv(configDir),
+    });
+  } finally {
+    fs.rmSync(configDir, { recursive: true, force: true });
+  }
 }
 
 // The PTY tests need the expect binary (see README); when it is missing they
@@ -93,7 +112,7 @@ function runMenuActionRoundTripWithTTY(configDir: string): SpawnSyncReturns<stri
     cwd: REPO_ROOT,
     encoding: "utf8",
     timeout: 60_000,
-    env: { ...process.env, TRIAGE_COMPANION_CONFIG_DIR: configDir },
+    env: isolatedEnv(configDir),
   });
 }
 

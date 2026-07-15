@@ -30,7 +30,8 @@ describe("menu Snyk actions", () => {
 
     const menu = buildMenuTree();
     const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const setAPIBaseURL = snykMenu?.items.find((item) => item.label === "Set API base URL");
+    const credentialsMenu = snykMenu?.items.find((item) => item.label === "Credentials")?.submenu;
+    const setAPIBaseURL = credentialsMenu?.items.find((item) => item.label === "Set API base URL");
 
     assert.ok(setAPIBaseURL?.action);
 
@@ -76,7 +77,8 @@ describe("menu Snyk actions", () => {
 
     const menu = buildMenuTree();
     const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const resetAPIBaseURL = snykMenu?.items.find((item) => item.label === "Reset API base URL");
+    const credentialsMenu = snykMenu?.items.find((item) => item.label === "Credentials")?.submenu;
+    const resetAPIBaseURL = credentialsMenu?.items.find((item) => item.label === "Reset API base URL");
 
     assert.ok(resetAPIBaseURL?.action);
 
@@ -128,7 +130,8 @@ describe("menu Snyk actions", () => {
 
     const menu = buildMenuTree();
     const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const setAPIBaseURL = snykMenu?.items.find((item) => item.label === "Set API base URL");
+    const credentialsMenu = snykMenu?.items.find((item) => item.label === "Credentials")?.submenu;
+    const setAPIBaseURL = credentialsMenu?.items.find((item) => item.label === "Set API base URL");
 
     assert.ok(setAPIBaseURL?.action);
 

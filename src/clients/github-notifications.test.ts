@@ -54,6 +54,20 @@ describe("github notifications", { concurrency: false }, () => {
     });
   });
 
+  test("explains classic token requirements when notifications return 403", async () => {
+    process.env.GITHUB_TOKEN = "github-env-token";
+    await withMockFetch(() =>
+      jsonResponse(
+        { message: "Resource not accessible by personal access token" },
+        { status: 403 },
+      ), async () => {
+        await assert.rejects(
+          () => listNotifications({ maxResults: 1 }),
+          /GitHub notifications require a classic personal access token with the notifications scope/,
+        );
+      });
+  });
+
   test("rejects GitHub notification entries with invalid top-level fields", async () => {
     process.env.GITHUB_TOKEN = "github-env-token";
     await expectListRejection(

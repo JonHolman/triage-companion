@@ -198,7 +198,7 @@ function resolveIssueProjectName(
 ): string {
   const name = projectNames.get(projectID);
   if (!name) {
-    throw new Error(`Snyk issue ${issueId} references unknown project ${projectID}.`);
+    return `Unavailable project ${projectID}`;
   }
 
   return name;

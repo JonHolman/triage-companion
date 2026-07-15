@@ -167,7 +167,7 @@ describe("snyk projects", { concurrency: false }, () => {
     );
   });
 
-  test("rejects Snyk issues that reference projects missing from the project list", async () => {
+  test("labels Snyk issues that reference projects missing from the project list", async () => {
     process.env.SNYK_TOKEN = "token-123";
 
     await support.withSnykRoutes(
@@ -176,10 +176,8 @@ describe("snyk projects", { concurrency: false }, () => {
         issuesByOrg: { "org-1": [support.snykIssue()] },
       },
       async () => {
-        await assert.rejects(
-          () => listOpenIssues(),
-          /Snyk issue issue-1 references unknown project project-1/,
-        );
+        const snapshot = await listOpenIssues();
+        assert.equal(snapshot.issues[0]?.projectName, "Unavailable project project-1");
       },
     );
   });

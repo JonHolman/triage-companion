@@ -172,6 +172,48 @@ support.describeWithExecutableWrapper("github.ts pull request API responses", { 
     );
   });
 
+  test("listMyOpenPullRequests explains pull request API permission failures", async () => {
+    support.installFakeGit(
+      context.testDir,
+      "git-head-only-pr-api-permission-failure",
+      headOnlyPullScript(),
+    );
+
+    await withMockFetch(
+      routeHandler(
+        new Map([
+          [
+            PULL_12_URL,
+            () =>
+              support.jsonResponse(
+                { message: " Resource not accessible by personal access token\n" },
+                403,
+              ),
+          ],
+        ]),
+      ),
+      () =>
+        assert.rejects(
+          () =>
+            listMyOpenPullRequests({
+              repositoryPaths: [context.repoDir],
+              githubLogin: "octocat",
+            }),
+          (error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            assert.match(
+              message,
+              /GitHub API HTTP 403 while checking pull request #12 in octocat\/hello-world: Resource not accessible by personal access token/,
+            );
+            assert.match(message, /GitHub token being used cannot read this repository's pull requests/);
+            assert.match(message, /narrow Git search roots/);
+            assert.ok(!message.includes("\n"));
+            return true;
+          },
+        ),
+    );
+  });
+
   test("listMyOpenPullRequests escapes control characters in pull request fetch failures", async () => {
     support.installFakeGit(
       context.testDir,
