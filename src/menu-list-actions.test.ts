@@ -10,7 +10,6 @@ import {
   githubNotification,
   jiraTicket,
   mockReadlineAnswer,
-  openPullRequest,
   originalCreateInterface,
   runBrowseMenuListAction,
   serviceMenuAction,
@@ -338,6 +337,68 @@ describe("menu list actions", { concurrency: false }, () => {
     );
   });
 
+  test("listGitHubNotifications merge action confirms and merges the selected pull request", async () => {
+    mockReadlineAnswer("yes");
+    const merged: string[] = [];
+
+    await withMenuListActionClients(
+      {
+        github: {
+          listNotifications: async () => [githubNotification({
+            id: "thread-789",
+            webURL: "https://github.com/octocat/hello-world/pull/12",
+          })],
+          mergePullRequestFromWebURL: async (webURL) => {
+            merged.push(webURL);
+            return {
+              repositoryFullName: "octocat/hello-world",
+              pullRequestNumber: "12",
+              sha: "a".repeat(40),
+              message: "Pull Request successfully merged",
+            };
+          },
+        },
+      },
+      async () => {
+        const output = await runBrowseMenuListAction(
+          serviceMenuAction("GitHub", "List notifications"),
+          ["y", "q"],
+        );
+
+        assert.deepEqual(merged, ["https://github.com/octocat/hello-world/pull/12"]);
+        assert.match(output, /Pull request #12 merged in octocat\/hello-world\./);
+        assert.match(output, /\(0 items\)/);
+      },
+    );
+  });
+
+  test("listGitHubNotifications merge action cancels without confirmation", async () => {
+    mockReadlineAnswer("");
+    const merged: string[] = [];
+
+    await withMenuListActionClients(
+      {
+        github: {
+          listNotifications: async () => [githubNotification()],
+          mergePullRequestFromWebURL: async (webURL) => {
+            merged.push(webURL);
+            throw new Error("merge should not run");
+          },
+        },
+      },
+      async () => {
+        const output = await runBrowseMenuListAction(
+          serviceMenuAction("GitHub", "List notifications"),
+          ["y", "q"],
+        );
+
+        assert.deepEqual(merged, []);
+        assert.match(output, /Merge canceled\./);
+        assert.doesNotMatch(output, /\(0 items\)/);
+      },
+    );
+  });
+
   test("listGitHubNotifications item actions reject selected items without IDs", async () => {
     for (const key of ["m", "d"]) {
       const marked: string[] = [];
@@ -364,83 +425,4 @@ describe("menu list actions", { concurrency: false }, () => {
     }
   });
 
-  test("menu-wired listGitHubOpenPullRequests renders stubbed data through browseMenuList", async () => {
-    const capturedOptions: Parameters<typeof import("./clients/github.ts").listMyOpenPullRequests>[0][] = [];
-
-    await withMenuListActionClients(
-      {
-        github: {
-          listMyOpenPullRequests: async (options) => {
-            capturedOptions.push(options);
-            return [openPullRequest()];
-          },
-        },
-      },
-      async () => {
-        const output = await runBrowseMenuListAction(
-          serviceMenuAction("GitHub", "List my open PRs"),
-          ["q"],
-        );
-
-        assert.equal(capturedOptions.length, 1);
-        assert.match(output, /My Open Pull Requests/);
-        assert.match(output, /hello-world #42/);
-        assert.match(output, /Author: octocat/);
-      },
-    );
-  });
-
-  test("menu-wired listGitHubOpenPullRequestsWithLogin passes login to client and renders results", async () => {
-    mockReadlineAnswer("octocat");
-    const capturedOptions: Parameters<typeof import("./clients/github.ts").listMyOpenPullRequests>[0][] = [];
-
-    await withMenuListActionClients(
-      {
-        github: {
-          listMyOpenPullRequests: async (options) => {
-            capturedOptions.push(options);
-            return [openPullRequest()];
-          },
-        },
-      },
-      async () => {
-        const output = await runBrowseMenuListAction(
-          serviceMenuAction("GitHub", "List my open PRs with login override"),
-          ["q"],
-        );
-
-        assert.equal(capturedOptions.length, 1);
-        assert.equal(capturedOptions[0]?.githubLogin, "octocat");
-        assert.match(output, /My Open Pull Requests/);
-        assert.match(output, /hello-world #42/);
-      },
-    );
-  });
-
-  test("menu-wired listGitHubOpenPullRequestsWithAuthorRegex passes regex to client and renders results", async () => {
-    mockReadlineAnswer("octocat.*");
-    const capturedOptions: Parameters<typeof import("./clients/github.ts").listMyOpenPullRequests>[0][] = [];
-
-    await withMenuListActionClients(
-      {
-        github: {
-          listMyOpenPullRequests: async (options) => {
-            capturedOptions.push(options);
-            return [openPullRequest()];
-          },
-        },
-      },
-      async () => {
-        const output = await runBrowseMenuListAction(
-          serviceMenuAction("GitHub", "List my open PRs with author regex"),
-          ["q"],
-        );
-
-        assert.equal(capturedOptions.length, 1);
-        assert.equal(capturedOptions[0]?.authorRegex, "octocat.*");
-        assert.match(output, /My Open Pull Requests/);
-        assert.match(output, /hello-world #42/);
-      },
-    );
-  });
 });

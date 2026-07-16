@@ -1,0 +1,410 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		160B08E95CAC032A6FD69AB2 /* TriageCompanionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6195F36B660F1DC15E64DCE6 /* TriageCompanionApp.swift */; };
+		37249770839ABE0141369FC3 /* TriageCompanionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6195F36B660F1DC15E64DCE6 /* TriageCompanionApp.swift */; };
+		3B84E7BAE5978B9B535712E7 /* GitHubClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064A23CA72E39F1592D62513 /* GitHubClient.swift */; };
+		3ED4554CF0FDDA1FC1259A03 /* SnykClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62FEC8ACBE1854C4C0B777C2 /* SnykClient.swift */; };
+		54FEDFF0F38075A889BBF620 /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E76B23E4FC29CD6CBB42BAF1 /* CredentialStore.swift */; };
+		5DBBFD16AF77E8C4AEED0EEC /* CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E76B23E4FC29CD6CBB42BAF1 /* CredentialStore.swift */; };
+		60250678D9ECBA180259F7C4 /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31A673CC319B01A41D82001E /* HTTPClient.swift */; };
+		67C7213E01DB495B954B8EE8 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EDFFF2D2F4587FD0D6AF64B /* Views.swift */; };
+		6D970C06868CB85064A25AE0 /* JiraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E488FC8FFFB507E8C64422 /* JiraClient.swift */; };
+		730E39B90664ABDF83E79C6B /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31A673CC319B01A41D82001E /* HTTPClient.swift */; };
+		7EAAB365C40E0D9C811D5349 /* JiraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E488FC8FFFB507E8C64422 /* JiraClient.swift */; };
+		997DE4E0229F7454E97ADDA0 /* GitHubClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064A23CA72E39F1592D62513 /* GitHubClient.swift */; };
+		ABA9600CB4B6206A9AC1347E /* SnykClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62FEC8ACBE1854C4C0B777C2 /* SnykClient.swift */; };
+		B32AAF5D206D941F36C9404A /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EDFFF2D2F4587FD0D6AF64B /* Views.swift */; };
+		B8A254BA71C68DB5937621DB /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C048F0A139237B82B76B1C1A /* AppModel.swift */; };
+		DD13F0B9E1AD57D94E87B165 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A72E7886C8BF0000560E4A /* Models.swift */; };
+		E58C00D3EB46CC5DE0735A5D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C048F0A139237B82B76B1C1A /* AppModel.swift */; };
+		E8594D0BD783A1C0E2693DA5 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A72E7886C8BF0000560E4A /* Models.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		064A23CA72E39F1592D62513 /* GitHubClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubClient.swift; sourceTree = "<group>"; };
+		16A72E7886C8BF0000560E4A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		31A673CC319B01A41D82001E /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
+		38AFEDDFD3803B7D40789633 /* TriageCompanionMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TriageCompanionMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3EDFFF2D2F4587FD0D6AF64B /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		6195F36B660F1DC15E64DCE6 /* TriageCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageCompanionApp.swift; sourceTree = "<group>"; };
+		62FEC8ACBE1854C4C0B777C2 /* SnykClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnykClient.swift; sourceTree = "<group>"; };
+		6E3E531C5F6974BFA58A7416 /* TriageCompanioniOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TriageCompanioniOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B8E488FC8FFFB507E8C64422 /* JiraClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraClient.swift; sourceTree = "<group>"; };
+		C048F0A139237B82B76B1C1A /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		E76B23E4FC29CD6CBB42BAF1 /* CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		59D771FC07E20760F6D3683F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6E3E531C5F6974BFA58A7416 /* TriageCompanioniOS.app */,
+				38AFEDDFD3803B7D40789633 /* TriageCompanionMac.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D89A57279BA11D5EB683BD17 = {
+			isa = PBXGroup;
+			children = (
+				EC8C7F96BE53CC2C15945155 /* TriageCompanion */,
+				59D771FC07E20760F6D3683F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		EC8C7F96BE53CC2C15945155 /* TriageCompanion */ = {
+			isa = PBXGroup;
+			children = (
+				C048F0A139237B82B76B1C1A /* AppModel.swift */,
+				E76B23E4FC29CD6CBB42BAF1 /* CredentialStore.swift */,
+				064A23CA72E39F1592D62513 /* GitHubClient.swift */,
+				31A673CC319B01A41D82001E /* HTTPClient.swift */,
+				B8E488FC8FFFB507E8C64422 /* JiraClient.swift */,
+				16A72E7886C8BF0000560E4A /* Models.swift */,
+				62FEC8ACBE1854C4C0B777C2 /* SnykClient.swift */,
+				6195F36B660F1DC15E64DCE6 /* TriageCompanionApp.swift */,
+				3EDFFF2D2F4587FD0D6AF64B /* Views.swift */,
+			);
+			path = TriageCompanion;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		07A8831D4852BFE7868E6FB8 /* TriageCompanioniOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6191C9D91E58A74064A9596D /* Build configuration list for PBXNativeTarget "TriageCompanioniOS" */;
+			buildPhases = (
+				36661506FC158BD5391ED9DB /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TriageCompanioniOS;
+			packageProductDependencies = (
+			);
+			productName = TriageCompanioniOS;
+			productReference = 6E3E531C5F6974BFA58A7416 /* TriageCompanioniOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		EB2EB888E1CDE0D33096F852 /* TriageCompanionMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B13C9B29694C654FF793A513 /* Build configuration list for PBXNativeTarget "TriageCompanionMac" */;
+			buildPhases = (
+				B6D5CFA4D6651B9D392E9A76 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TriageCompanionMac;
+			packageProductDependencies = (
+			);
+			productName = TriageCompanionMac;
+			productReference = 38AFEDDFD3803B7D40789633 /* TriageCompanionMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A4542CF7788C6B53AD891F82 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 6D9EB8910FCB1C1CCBFAE80A /* Build configuration list for PBXProject "TriageCompanion" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D89A57279BA11D5EB683BD17;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 59D771FC07E20760F6D3683F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				EB2EB888E1CDE0D33096F852 /* TriageCompanionMac */,
+				07A8831D4852BFE7868E6FB8 /* TriageCompanioniOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		36661506FC158BD5391ED9DB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B8A254BA71C68DB5937621DB /* AppModel.swift in Sources */,
+				54FEDFF0F38075A889BBF620 /* CredentialStore.swift in Sources */,
+				3B84E7BAE5978B9B535712E7 /* GitHubClient.swift in Sources */,
+				730E39B90664ABDF83E79C6B /* HTTPClient.swift in Sources */,
+				6D970C06868CB85064A25AE0 /* JiraClient.swift in Sources */,
+				DD13F0B9E1AD57D94E87B165 /* Models.swift in Sources */,
+				3ED4554CF0FDDA1FC1259A03 /* SnykClient.swift in Sources */,
+				37249770839ABE0141369FC3 /* TriageCompanionApp.swift in Sources */,
+				67C7213E01DB495B954B8EE8 /* Views.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B6D5CFA4D6651B9D392E9A76 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E58C00D3EB46CC5DE0735A5D /* AppModel.swift in Sources */,
+				5DBBFD16AF77E8C4AEED0EEC /* CredentialStore.swift in Sources */,
+				997DE4E0229F7454E97ADDA0 /* GitHubClient.swift in Sources */,
+				60250678D9ECBA180259F7C4 /* HTTPClient.swift in Sources */,
+				7EAAB365C40E0D9C811D5349 /* JiraClient.swift in Sources */,
+				E8594D0BD783A1C0E2693DA5 /* Models.swift in Sources */,
+				ABA9600CB4B6206A9AC1347E /* SnykClient.swift in Sources */,
+				160B08E95CAC032A6FD69AB2 /* TriageCompanionApp.swift in Sources */,
+				B32AAF5D206D941F36C9404A /* Views.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		120EA28E3DB31F877DDA3C79 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Triage Companion";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.triage-companion.app";
+				PRODUCT_NAME = "Triage Companion";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		20421D061D2E78F202337D29 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Triage Companion";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.triage-companion.mac";
+				PRODUCT_NAME = "Triage Companion";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		32CF4BA9C915F5B839D60329 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Triage Companion";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.triage-companion.app";
+				PRODUCT_NAME = "Triage Companion";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		47D5AFC69ACC8E500326F1A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Triage Companion";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.triage-companion.mac";
+				PRODUCT_NAME = "Triage Companion";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5F41E44EECDAA0A6A05585B4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BF2CFC4E655CF9E29202EEF0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6191C9D91E58A74064A9596D /* Build configuration list for PBXNativeTarget "TriageCompanioniOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				120EA28E3DB31F877DDA3C79 /* Debug */,
+				32CF4BA9C915F5B839D60329 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6D9EB8910FCB1C1CCBFAE80A /* Build configuration list for PBXProject "TriageCompanion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF2CFC4E655CF9E29202EEF0 /* Debug */,
+				5F41E44EECDAA0A6A05585B4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B13C9B29694C654FF793A513 /* Build configuration list for PBXNativeTarget "TriageCompanionMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				20421D061D2E78F202337D29 /* Debug */,
+				47D5AFC69ACC8E500326F1A4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A4542CF7788C6B53AD891F82 /* Project object */;
+}

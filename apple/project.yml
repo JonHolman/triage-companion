@@ -1,0 +1,49 @@
+name: TriageCompanion
+options:
+  bundleIdPrefix: com.triage-companion
+  deploymentTarget:
+    iOS: "16.0"
+    macOS: "13.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.0"
+targets:
+  TriageCompanioniOS:
+    type: application
+    platform: iOS
+    sources:
+      - TriageCompanion
+    settings:
+      base:
+        PRODUCT_NAME: Triage Companion
+        PRODUCT_BUNDLE_IDENTIFIER: com.triage-companion.app
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Triage Companion
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+  TriageCompanionMac:
+    type: application
+    platform: macOS
+    sources:
+      - TriageCompanion
+    settings:
+      base:
+        PRODUCT_NAME: Triage Companion
+        PRODUCT_BUNDLE_IDENTIFIER: com.triage-companion.mac
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Triage Companion
+schemes:
+  TriageCompanion iOS:
+    build:
+      targets:
+        TriageCompanioniOS: all
+    run:
+      config: Debug
+  TriageCompanion macOS:
+    build:
+      targets:
+        TriageCompanionMac: all
+    run:
+      config: Debug

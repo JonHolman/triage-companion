@@ -28,10 +28,8 @@ describe("menu Snyk actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const menu = buildMenuTree();
-    const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const credentialsMenu = snykMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const setAPIBaseURL = credentialsMenu?.items.find((item) => item.label === "Set API base URL");
+    const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+    const setAPIBaseURL = configurationMenu?.items.find((item) => item.label === "Set Snyk API base URL");
 
     assert.ok(setAPIBaseURL?.action);
 
@@ -75,10 +73,8 @@ describe("menu Snyk actions", () => {
     delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
     resetCache();
 
-    const menu = buildMenuTree();
-    const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const credentialsMenu = snykMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const resetAPIBaseURL = credentialsMenu?.items.find((item) => item.label === "Reset API base URL");
+    const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+    const resetAPIBaseURL = configurationMenu?.items.find((item) => item.label === "Reset Snyk API base URL");
 
     assert.ok(resetAPIBaseURL?.action);
 
@@ -128,10 +124,8 @@ describe("menu Snyk actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const menu = buildMenuTree();
-    const snykMenu = menu.items.find((item) => item.label === "Snyk")?.submenu;
-    const credentialsMenu = snykMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const setAPIBaseURL = credentialsMenu?.items.find((item) => item.label === "Set API base URL");
+    const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+    const setAPIBaseURL = configurationMenu?.items.find((item) => item.label === "Set Snyk API base URL");
 
     assert.ok(setAPIBaseURL?.action);
 

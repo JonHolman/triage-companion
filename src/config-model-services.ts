@@ -39,6 +39,12 @@ const SERVICES: Record<ServiceId, ServiceModel> = {
           ],
         },
         {
+          feature: "GitHub notification merge PR action",
+          permissions: [
+            "Classic personal access token with notifications plus repo for private repositories or public_repo for public repositories; token account must have write access",
+          ],
+        },
+        {
           feature: "github security-alerts",
           permissions: [
             "Fine-grained token with Dependabot alerts: read; classic token with security_events for public repos or repo for private repos",
@@ -192,6 +198,30 @@ const SERVICES: Record<ServiceId, ServiceModel> = {
           feature: "Jira tickets",
           permissions: [
             "Browse Projects and View Issues; scoped Atlassian API tokens also need the Jira read scopes for issue search",
+          ],
+        },
+        {
+          feature: "Jira ticket creation",
+          permissions: [
+            "Create Issues in the target project; scoped Atlassian API tokens also need Jira write issue scopes",
+          ],
+        },
+        {
+          feature: "Jira ticket comments",
+          permissions: [
+            "Browse Projects and Add Comments on the target issue; scoped Atlassian API tokens also need Jira write comment scopes",
+          ],
+        },
+        {
+          feature: "Jira sprint assignment",
+          permissions: [
+            "Schedule Issues and access to the target open or active sprint; scoped Atlassian API tokens also need Jira Software sprint write scopes",
+          ],
+        },
+        {
+          feature: "Jira ticket status changes",
+          permissions: [
+            "Browse Projects and Transition Issues on the target issue; scoped Atlassian API tokens also need Jira transition read and issue write scopes",
           ],
         },
       ],

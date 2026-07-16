@@ -68,31 +68,34 @@ import {
 const DEFAULT_IGNORED_BRANCH_SET = new Set<string>(DEFAULT_IGNORED_PR_BRANCHES);
 const GIT_REMOTE_COMMAND_TIMEOUT_MS = 30_000;
 
+class RemoteRefReadError extends Error {}
+
 function loadRemoteRefs(
   gitBinary: string,
   repositoryPath: string,
   repositoryFullName: string,
   refPatterns: readonly string[],
 ): GitHubRef[] {
+  let output: string;
   try {
-    return remoteRefs(
-      runGitCommand(gitBinary, [
-        "-C",
-        repositoryPath,
-        "ls-remote",
-        "origin",
-        ...refPatterns,
-      ], { timeout: GIT_REMOTE_COMMAND_TIMEOUT_MS }),
-    );
+    output = runGitCommand(gitBinary, [
+      "-C",
+      repositoryPath,
+      "ls-remote",
+      "origin",
+      ...refPatterns,
+    ], { timeout: GIT_REMOTE_COMMAND_TIMEOUT_MS });
   } catch (error) {
     const message = inlineErrorText(error instanceof Error ? error.message : String(error));
-    throw new Error(
+    throw new RemoteRefReadError(
       `Could not read GitHub remote refs for ${repositoryFullName}. ` +
         "Check that the local clone's origin exists and is readable, or narrow Git search roots if this local clone should not be scanned. " +
         message,
       { cause: error },
     );
   }
+
+  return remoteRefs(output);
 }
 
 async function loadPullRequestSummary(
@@ -195,6 +198,7 @@ export async function listMyOpenPullRequests({
   searchRoots,
   authorRegex = null,
   githubLogin = null,
+  onSkippedRepository,
 }: OpenPullRequestOptions = {}): Promise<OpenPullRequest[]> {
   const explicitAuthorPattern = buildAuthorPattern(authorRegex);
   const validatedGitHubLogin = githubLogin === null
@@ -274,16 +278,31 @@ export async function listMyOpenPullRequests({
 
     const repositoryFullName = resolvedFullName;
     const repositoryURL = `https://github.com/${repositoryFullName}`;
-    const branchRefs = loadRemoteRefs(gitBinary, repositoryPath, repositoryFullName, ["refs/heads/*"]);
+    let branchRefs: GitHubRef[];
+    let pullRefs: GitHubRef[];
+    try {
+      branchRefs = loadRemoteRefs(gitBinary, repositoryPath, repositoryFullName, ["refs/heads/*"]);
+      pullRefs = loadRemoteRefs(
+        gitBinary,
+        repositoryPath,
+        repositoryFullName,
+        ["refs/pull/*/head", "refs/pull/*/merge"],
+      );
+    } catch (error) {
+      if (!hasExplicitRepositoryPaths && error instanceof RemoteRefReadError) {
+        onSkippedRepository?.({
+          repositoryPath,
+          repositoryFullName,
+          reason: error.message,
+        });
+        continue;
+      }
+
+      throw error;
+    }
     for (const ref of branchRefs) {
       branchName(ref.ref);
     }
-    const pullRefs = loadRemoteRefs(
-      gitBinary,
-      repositoryPath,
-      repositoryFullName,
-      ["refs/pull/*/head", "refs/pull/*/merge"],
-    );
     for (const ref of pullRefs) {
       validatePullRequestRef(ref.ref);
     }

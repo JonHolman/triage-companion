@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { register } from "./jira.ts";
 import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 import { hasCredentials, saveCredentials } from "../clients/jira.ts";
+import { withMockFetch } from "../clients/fetch-mock-test-support.ts";
 import * as support from "../clients/jira-test-support.ts";
 import { resetCache } from "../credential-store.ts";
 
@@ -69,7 +70,7 @@ afterEach(() => {
 });
 
 describe("jira command registration", () => {
-  test("registers credentials and tickets commands", () => {
+  test("registers credentials, ticket listing, and ticket action commands", () => {
     const program = new Command();
     register(program);
 
@@ -83,6 +84,41 @@ describe("jira command registration", () => {
 
     const tickets = findCommand(jira, "tickets");
     assert.deepEqual(optionLongNames(tickets), ["--json"]);
+
+    const createTicket = findCommand(jira, "create-ticket");
+    assert.equal(createTicket.description(), "Create a Jira ticket");
+    assert.deepEqual(optionLongNames(createTicket), ["--type", "--description"]);
+
+    assert.equal(findCommand(jira, "comment-ticket").description(), "Add a comment to a Jira ticket");
+    assert.equal(findCommand(jira, "assign-sprint").description(), "Assign a Jira ticket to a sprint");
+    assert.equal(findCommand(jira, "change-status").description(), "Change a Jira ticket status");
+  });
+
+  test("create-ticket command prints the created Jira ticket link", async () => {
+    saveCredentials("https://example.atlassian.net", "dev@example.com", "secret-jira-token");
+
+    await withMockFetch(
+      (input, init) => {
+        assert.equal(typeof input === "string" ? input : input.toString(), support.issueURL("https://example.atlassian.net"));
+        assert.equal(init?.method, "POST");
+        return support.createResponse({ id: "10001", key: "TC-123" }, 201);
+      },
+      async () => {
+        const output = await runRegisteredCommand(register, [
+          "jira",
+          "create-ticket",
+          "TC",
+          "Fix checkout retry",
+          "--type",
+          "Bug",
+          "--description",
+          "Retry should preserve cart state.",
+        ]);
+
+        assert.match(output, /Jira ticket TC-123 created: https:\/\/example\.atlassian\.net\/browse\/TC-123/);
+        assert.equal(output.includes("secret-jira-token"), false);
+      },
+    );
   });
 
   test("removes persisted credentials through the direct command", async () => {

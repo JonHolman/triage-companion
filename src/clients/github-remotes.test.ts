@@ -197,6 +197,53 @@ support.describeWithExecutableWrapper("github.ts pull request remotes", { concur
     );
   });
 
+  test("listMyOpenPullRequests skips remote ref lookup failures for discovered repositories", async () => {
+    support.installFakeGit(
+      context.testDir,
+      "git-discovered-remote-ref-failure",
+      support.gitCaseScript([
+        ['*" config --get user.name"', 'printf "Repo User\\n"'],
+        ['*" config --get user.email"', 'printf "repo@example.com\\n"'],
+        [`*"${context.repoDir}"*" remote get-url origin"`, 'printf "git@github.com:octocat/broken-repo.git\\n"'],
+        [
+          `*"${context.repoDir}"*" ls-remote origin refs/heads/*"`,
+          'printf "ERROR: Repository not found.\\n" >&2; exit 128',
+        ],
+        [`*"${context.worktreeRepoDir}"*" remote get-url origin"`, 'printf "git@github.com:octocat/second-repo.git\\n"'],
+        [
+          `*"${context.worktreeRepoDir}"*" ls-remote origin refs/heads/*"`,
+          `printf "${support.OBJECT_ID_A}\\trefs/heads/feature\\n"`,
+        ],
+        [
+          `*"${context.worktreeRepoDir}"*" ls-remote origin refs/pull/*/head refs/pull/*/merge"`,
+          `printf "${support.OBJECT_ID_A}\\trefs/pull/34/head\\n${support.OBJECT_ID_B}\\trefs/pull/34/merge\\n"`,
+        ],
+        [`*"${context.worktreeRepoDir}"*" cat-file -e ${support.OBJECT_ID_A}"`, "exit 0"],
+        [
+          `*"${context.worktreeRepoDir}"*" log -1 --format=%an %ae ${support.OBJECT_ID_A}"`,
+          'printf "Repo User repo@example.com\\n"',
+        ],
+        [`*"${context.submoduleRepoDir}"*" remote get-url origin"`, 'printf "git@example.com:team/internal-tool.git\\n"'],
+      ]),
+    );
+    const skipped: Array<{ repositoryFullName: string; repositoryPath: string; reason: string }> = [];
+
+    const result = await listMyOpenPullRequests({
+      searchRoots: [context.testDir],
+      onSkippedRepository: (repository) => skipped.push(repository),
+    });
+
+    assert.deepEqual(
+      result.map((item) => item.url),
+      ["https://github.com/octocat/second-repo/pull/34"],
+    );
+    assert.equal(skipped.length, 1);
+    assert.equal(skipped[0]?.repositoryFullName, "octocat/broken-repo");
+    assert.equal(skipped[0]?.repositoryPath, context.repoDir);
+    assert.match(skipped[0]?.reason ?? "", /Could not read GitHub remote refs for octocat\/broken-repo/);
+    assert.match(skipped[0]?.reason ?? "", /Repository not found/);
+  });
+
   test("listMyOpenPullRequests rejects malformed pull request refs", async () => {
     support.installFakeGit(
       context.testDir,

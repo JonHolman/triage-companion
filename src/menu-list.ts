@@ -140,7 +140,17 @@ export async function browseMenuList(
         if (!item) {
           continue;
         }
-        const result = await action.run(item, selected);
+        if (rawModeInput) {
+          process.stdin.setRawMode(false);
+        }
+        let result: MenuListActionResult;
+        try {
+          result = await action.run(item, selected);
+        } finally {
+          if (rawModeInput) {
+            process.stdin.setRawMode(true);
+          }
+        }
         if (result.remove) {
           items.splice(selected, 1);
         }

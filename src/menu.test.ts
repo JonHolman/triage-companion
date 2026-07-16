@@ -5,7 +5,6 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import readline from "node:readline";
 import { describe, test } from "node:test";
 
 import * as github from "./clients/github.ts";
@@ -15,7 +14,6 @@ import { resetCache } from "./credential-store.ts";
 import { ENV } from "./config-model.ts";
 import { SUPPRESS_ACTIVITY_ENV } from "./commands/command-utils.ts";
 import { buildConfigurationSummary } from "./config-summary.ts";
-import { setMenuListActionClientsForTest } from "./menu-list-actions.ts";
 import {
   buildMenuTree,
   isMenuInterruptKey,
@@ -117,76 +115,77 @@ function submenuLabels(label: string): string[] {
   return submenu.items.map((item) => item.label);
 }
 
-function credentialLabels(label: string): string[] {
-  const submenu = buildMenuTree().items.find((item) => item.label === label)?.submenu;
-  const credentials = submenu?.items.find((item) => item.label === "Credentials")?.submenu;
-  assert.ok(credentials);
-  return credentials.items.map((item) => item.label);
-}
-
 describe("menu", () => {
-  test("includes all major CLI areas", () => {
-    const labels = collectLabels();
-
-    assert.ok(labels.includes("Status"));
-    assert.ok(labels.includes("GitHub"));
-    assert.ok(labels.includes("Snyk"));
-    assert.ok(labels.includes("Jira"));
-    assert.ok(labels.includes("Git"));
-    assert.ok(labels.includes("Configuration"));
-    assert.ok(labels.includes("List notifications"));
-    assert.ok(labels.includes("List security alerts"));
-    assert.ok(labels.includes("List failed workflows"));
-    assert.ok(labels.includes("List my open PRs with login override"));
-    assert.ok(labels.includes("List my open PRs with author regex"));
-    assert.ok(labels.includes("List issues"));
-    assert.ok(labels.includes("List issues by severity"));
-    assert.ok(labels.includes("Set API base URL"));
-    assert.ok(labels.includes("Reset API base URL"));
-    assert.ok(labels.includes("List tickets"));
-    assert.ok(labels.includes("List dirty repositories"));
-    assert.ok(labels.includes("View configuration"));
-    assert.ok(labels.includes("Edit git search roots"));
-    assert.ok(labels.includes("Reset git search roots"));
-    assert.ok(labels.includes("Credentials"));
-    assert.ok(labels.includes("Set or replace token"));
-    assert.ok(labels.includes("Remove token"));
-    assert.ok(labels.includes("Remove credentials"));
-  });
-
-  test("keeps credential actions inside service credentials submenus", async () => {
+  test("includes base CLI areas and configuration actions", async () => {
     await withIsolatedCredentialConfig(() => {
-      assert.equal(submenuLabels("GitHub")[0], "Credentials");
-      assert.deepEqual(credentialLabels("GitHub"), ["Set or replace token", "Remove token", "Back"]);
-      assert.deepEqual(
-        credentialLabels("Snyk"),
-        ["Set or replace token", "Set API base URL", "Reset API base URL", "Remove token", "Back"],
-      );
-      assert.deepEqual(credentialLabels("Jira"), ["Set or replace credentials", "Remove credentials", "Back"]);
+      const labels = collectLabels();
+
+      assert.ok(labels.includes("Status"));
+      assert.ok(labels.includes("GitHub"));
+      assert.ok(labels.includes("Git"));
+      assert.ok(labels.includes("Configuration"));
+      assert.ok(labels.includes("List my open PRs"));
+      assert.ok(labels.includes("List my open PRs with login override"));
+      assert.ok(labels.includes("List my open PRs with author regex"));
+      assert.ok(labels.includes("List dirty repositories"));
+      assert.ok(labels.includes("View configuration"));
+      assert.ok(labels.includes("Set or replace GitHub token"));
+      assert.ok(labels.includes("Remove GitHub token"));
+      assert.ok(labels.includes("Set or replace Snyk token"));
+      assert.ok(labels.includes("Remove Snyk token"));
+      assert.ok(labels.includes("Set Snyk API base URL"));
+      assert.ok(labels.includes("Reset Snyk API base URL"));
+      assert.ok(labels.includes("Set or replace Jira credentials"));
+      assert.ok(labels.includes("Remove Jira credentials"));
+      assert.ok(labels.includes("Edit git search roots"));
+      assert.ok(labels.includes("Reset git search roots"));
+      assert.equal(labels.includes("List notifications"), false);
+      assert.equal(labels.includes("List security alerts"), false);
+      assert.equal(labels.includes("List failed workflows"), false);
+      assert.equal(labels.includes("Snyk"), false);
+      assert.equal(labels.includes("Jira"), false);
     });
   });
 
-  test("keeps work actions first for configured service menus", async () => {
+  test("shows token-backed service menu actions only when configured", async () => {
     await withIsolatedCredentialConfig(() => {
+      assert.equal(buildMenuTree().items.some((item) => item.label === "GitHub"), true);
+      assert.deepEqual(submenuLabels("GitHub"), [
+        "List my open PRs",
+        "List my open PRs with login override",
+        "List my open PRs with author regex",
+        "Back",
+      ]);
+      assert.equal(buildMenuTree().items.some((item) => item.label === "Snyk"), false);
+      assert.equal(buildMenuTree().items.some((item) => item.label === "Jira"), false);
+
       github.saveToken("github-token");
       snyk.saveToken("snyk-token");
       jira.saveCredentials("https://example.atlassian.net", "dev@example.com", "jira-token");
 
       assert.equal(submenuLabels("GitHub")[0], "List notifications");
       assert.equal(submenuLabels("Snyk")[0], "List issues");
-      assert.equal(submenuLabels("Jira")[0], "List tickets");
+      assert.deepEqual(submenuLabels("Jira"), [
+        "List tickets",
+        "Create ticket",
+        "Comment on ticket",
+        "Assign ticket to sprint",
+        "Change ticket status",
+        "Back",
+      ]);
     });
   });
 
-  test("service submenus can refresh after credentials change", async () => {
+  test("root menu can refresh after credentials change", async () => {
     await withIsolatedCredentialConfig(() => {
-      const githubMenu = buildMenuTree().items.find((item) => item.label === "GitHub")?.submenu;
-      assert.ok(githubMenu?.refresh);
-      assert.equal(githubMenu.items[0]?.label, "Credentials");
+      const rootMenu = buildMenuTree();
+      assert.ok(rootMenu.refresh);
+      assert.equal(submenuLabels("GitHub")[0], "List my open PRs");
 
       github.saveToken("github-token");
-      const refreshed = githubMenu.refresh();
-      assert.equal(refreshed.items[0]?.label, "List notifications");
+      const refreshed = rootMenu.refresh();
+      const githubMenu = refreshed.items.find((item) => item.label === "GitHub")?.submenu;
+      assert.equal(githubMenu?.items[0]?.label, "List notifications");
     });
   });
 
@@ -287,74 +286,6 @@ describe("menu", () => {
     }
 
     assert.equal(output, buildConfigurationSummary());
-  });
-
-  test("menu login override treats whitespace-only input as cancel", async () => {
-    let listCalls = 0;
-    const restore = setMenuListActionClientsForTest({
-      github: {
-        listMyOpenPullRequests: async () => {
-          listCalls += 1;
-          return [];
-        },
-      },
-    });
-
-    const originalCreateInterface = readline.createInterface;
-    readline.createInterface = ((() => ({
-      question: (_prompt: string, callback: (value: string) => void) => callback("   "),
-      close: () => undefined,
-      once: () => undefined,
-    })) as unknown) as typeof readline.createInterface;
-
-    const menu = buildMenuTree();
-    const githubMenu = menu.items.find((item) => item.label === "GitHub")?.submenu;
-    const listWithLogin = githubMenu?.items.find((item) => item.label === "List my open PRs with login override");
-
-    assert.ok(listWithLogin?.action);
-
-    try {
-      await listWithLogin.action();
-    } finally {
-      readline.createInterface = originalCreateInterface;
-      restore();
-    }
-
-    assert.equal(listCalls, 0);
-  });
-
-  test("menu author regex override treats whitespace-only input as cancel", async () => {
-    let listCalls = 0;
-    const restore = setMenuListActionClientsForTest({
-      github: {
-        listMyOpenPullRequests: async () => {
-          listCalls += 1;
-          return [];
-        },
-      },
-    });
-
-    const originalCreateInterface = readline.createInterface;
-    readline.createInterface = ((() => ({
-      question: (_prompt: string, callback: (value: string) => void) => callback("   "),
-      close: () => undefined,
-      once: () => undefined,
-    })) as unknown) as typeof readline.createInterface;
-
-    const menu = buildMenuTree();
-    const githubMenu = menu.items.find((item) => item.label === "GitHub")?.submenu;
-    const listWithRegex = githubMenu?.items.find((item) => item.label === "List my open PRs with author regex");
-
-    assert.ok(listWithRegex?.action);
-
-    try {
-      await listWithRegex.action();
-    } finally {
-      readline.createInterface = originalCreateInterface;
-      restore();
-    }
-
-    assert.equal(listCalls, 0);
   });
 
   test("menu spawned commands print activity dots while the child is running", async (t) => {

@@ -179,6 +179,27 @@ export function validatePullRequestAPIURL(
   return parsed.href;
 }
 
+export function parsePullRequestWebURL(value: string): {
+  repositoryFullName: string;
+  pullRequestNumber: string;
+} {
+  requireGitHubWebURL(value, "GitHub pull request link");
+  const parts = rawGitHubPathSegments(value);
+  if (
+    parts === null ||
+    parts.length !== 4 ||
+    parts[2] !== "pull" ||
+    !isPositiveIntegerText(parts[3])
+  ) {
+    throw new Error("GitHub pull request link must be a GitHub pull request URL.");
+  }
+
+  return {
+    repositoryFullName: validateRepositoryFullName(`${parts[0]}/${parts[1]}`),
+    pullRequestNumber: parts[3],
+  };
+}
+
 // Scheme-agnostic by design: repositoryFullNameFromRemoteURL delegates ssh://
 // remote URLs here for path extraction after validating the protocol itself.
 export function repositoryFullNameFromURL(repositoryURL: string): string | null {

@@ -13,6 +13,7 @@ import { summarizeSeverities } from "../severity.ts";
 import {
   parseLimit,
   parseSearchRootsJSON,
+  inlineErrorText,
   printEnvOverrideMessage,
   printSetupGuidance,
   printTokenPermissions,
@@ -161,12 +162,21 @@ export function register(program: Command): void {
           const searchRoots = opts.searchRoots === undefined
             ? undefined
             : parseSearchRootsJSON(opts.searchRoots, "--search-roots");
+          const skippedRepositories: string[] = [];
           const pullRequests = await github.listMyOpenPullRequests({
             repositoryPaths: paths.length > 0 ? paths : undefined,
             searchRoots,
             authorRegex: opts.authorRegex ?? rawNonBlankEnvValue(process.env[ENV.GITHUB_PR_AUTHOR_REGEX]),
             githubLogin: opts.githubLogin ?? null,
+            onSkippedRepository: (repository) => {
+              skippedRepositories.push(
+                `${repository.repositoryFullName} at ${repository.repositoryPath}: ${repository.reason}`,
+              );
+            },
           });
+          for (const repository of skippedRepositories) {
+            process.stderr.write(dim(`Skipped GitHub repository ${inlineErrorText(repository)}\n`));
+          }
 
           if (opts.json) {
             console.log(JSON.stringify(pullRequests, null, 2));

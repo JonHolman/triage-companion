@@ -129,6 +129,22 @@ export function searchURL(baseURL: string, nextPageToken?: string): string {
   return `${baseURL}/rest/api/3/search/jql?${params}`;
 }
 
+export function issueURL(baseURL: string, apiVersion = "3"): string {
+  return `${baseURL}/rest/api/${apiVersion}/issue`;
+}
+
+export function issueCommentURL(baseURL: string, issueKey: string, apiVersion = "3"): string {
+  return `${issueURL(baseURL, apiVersion)}/${issueKey}/comment`;
+}
+
+export function issueTransitionsURL(baseURL: string, issueKey: string, apiVersion = "3"): string {
+  return `${issueURL(baseURL, apiVersion)}/${issueKey}/transitions`;
+}
+
+export function sprintIssueURL(baseURL: string, sprintID: string): string {
+  return `${baseURL}/rest/agile/1.0/sprint/${sprintID}/issue`;
+}
+
 export function dataCenterSearchURL(baseURL: string, startAt: number = 0): string {
   const params = new URLSearchParams({
     jql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",

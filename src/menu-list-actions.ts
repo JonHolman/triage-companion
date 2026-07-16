@@ -6,6 +6,7 @@ import type {
   FailedWorkflowRun,
   GitHubNotification,
   OpenPullRequest,
+  OpenPullRequestOptions,
 } from "./clients/github-types.ts";
 import type { SnykIssue } from "./clients/snyk-types.ts";
 import { ENV } from "./config-model.ts";
@@ -23,6 +24,7 @@ interface MenuListActionClients {
     | "listSecurityAlertNotificationRepositories"
     | "listSecurityAlerts"
     | "markNotificationRead"
+    | "mergePullRequestFromWebURL"
     | "resolveCurrentRepositoryFullName"
   >;
   jira: Pick<typeof jira, "listOpenTickets">;
@@ -108,6 +110,10 @@ function notificationItem(notification: GitHubNotification): MenuListItem {
   };
 }
 
+function menuItemField(item: MenuListItem, label: string): string | null {
+  return item.fields.find(([fieldLabel]) => fieldLabel === label)?.[1] ?? null;
+}
+
 export async function listGitHubNotifications(): Promise<void> {
   const notifications = await withActivity(
     "github notifications",
@@ -153,6 +159,36 @@ export async function listGitHubNotifications(): Promise<void> {
             return { remove: true, message: `Notification ${id} dismissed.` };
           },
         },
+        {
+          key: "y",
+          label: "merge PR",
+          run: async (item) => {
+            if (menuItemField(item, "Type") !== "PR") {
+              return { message: "Selected notification is not a pull request." };
+            }
+            const state = menuItemField(item, "State");
+            if (state !== null && state !== "open") {
+              return { message: "Selected pull request is not open." };
+            }
+            const link = menuItemField(item, "Link");
+            if (link === null) {
+              throw new Error("Selected notification is missing a link.");
+            }
+            const confirmation = await prompt("Type yes to merge selected pull request (blank, Esc, or q to cancel): ");
+            if (confirmation !== "yes") {
+              return { message: "Merge canceled." };
+            }
+
+            const result = await withActivity(
+              `github merge-pr ${item.id ?? ""}`.trim(),
+              () => menuListActionClients.github.mergePullRequestFromWebURL(link),
+            );
+            return {
+              remove: true,
+              message: `Pull request #${result.pullRequestNumber} merged in ${result.repositoryFullName}.`,
+            };
+          },
+        },
       ],
     },
   );
@@ -172,20 +208,35 @@ function openPullRequestItem(pr: OpenPullRequest): MenuListItem {
   };
 }
 
-export async function listGitHubOpenPullRequests(): Promise<void> {
+async function browseGitHubOpenPullRequests(options: OpenPullRequestOptions): Promise<void> {
+  const skippedRepositories: string[] = [];
   const pullRequests = await withActivity(
     "github my-open-prs",
-    () => menuListActionClients.github.listMyOpenPullRequests({
-      authorRegex: rawNonBlankEnvValue(process.env[ENV.GITHUB_PR_AUTHOR_REGEX]),
-    }),
+    () => menuListActionClients.github.listMyOpenPullRequests(
+      {
+        ...options,
+        onSkippedRepository: (repository) => {
+          skippedRepositories.push(`${repository.repositoryFullName} at ${repository.repositoryPath}: ${repository.reason}`);
+        },
+      },
+    ),
     { immediate: true },
   );
+  for (const repository of skippedRepositories) {
+    process.stderr.write(`Skipped GitHub repository ${repository}\n`);
+  }
   if (pullRequests.length === 0) {
     console.log("No open pull requests found.");
     return;
   }
 
   await browseMenuList("My Open Pull Requests", pullRequests.map(openPullRequestItem));
+}
+
+export async function listGitHubOpenPullRequests(): Promise<void> {
+  await browseGitHubOpenPullRequests({
+    authorRegex: rawNonBlankEnvValue(process.env[ENV.GITHUB_PR_AUTHOR_REGEX]),
+  });
 }
 
 export async function listGitHubOpenPullRequestsWithLogin(): Promise<void> {
@@ -194,17 +245,7 @@ export async function listGitHubOpenPullRequestsWithLogin(): Promise<void> {
     return;
   }
 
-  const pullRequests = await withActivity(
-    "github my-open-prs",
-    () => menuListActionClients.github.listMyOpenPullRequests({ githubLogin: login }),
-    { immediate: true },
-  );
-  if (pullRequests.length === 0) {
-    console.log("No open pull requests found.");
-    return;
-  }
-
-  await browseMenuList("My Open Pull Requests", pullRequests.map(openPullRequestItem));
+  await browseGitHubOpenPullRequests({ githubLogin: login });
 }
 
 export async function listGitHubOpenPullRequestsWithAuthorRegex(): Promise<void> {
@@ -213,17 +254,7 @@ export async function listGitHubOpenPullRequestsWithAuthorRegex(): Promise<void>
     return;
   }
 
-  const pullRequests = await withActivity(
-    "github my-open-prs",
-    () => menuListActionClients.github.listMyOpenPullRequests({ authorRegex: pattern }),
-    { immediate: true },
-  );
-  if (pullRequests.length === 0) {
-    console.log("No open pull requests found.");
-    return;
-  }
-
-  await browseMenuList("My Open Pull Requests", pullRequests.map(openPullRequestItem));
+  await browseGitHubOpenPullRequests({ authorRegex: pattern });
 }
 
 function securityAlertItem(alert: DependabotAlert): MenuListItem {

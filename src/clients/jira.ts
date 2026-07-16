@@ -33,21 +33,21 @@ const ACCOUNT_CLOUD_ID = cloudIDStorage.account;
 const MAX_PAGE_SIZE = 100;
 const ISSUE_FIELDS = "summary,status,priority,issuetype,reporter,updated,resolution";
 const JQL = "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC";
-const USER_AGENT = "triage-companion";
+export const USER_AGENT = "triage-companion";
 const jiraPermissionText = getServiceDefinition("jira").status.permissionRequirements
   .map((requirement) => `${requirement.feature}: ${requirement.permissions.join(", ")}`)
   .join("; ");
 
 type JiraAPIKind = "cloud" | "data-center";
 
-interface JiraSettings {
+export interface JiraSettings {
   baseURL: string;
   email: string;
   apiToken: string;
   cloudID: string | null;
 }
 
-interface JiraTicket {
+export interface JiraTicket {
   key: string;
   issueType: string;
   status: string;
@@ -72,14 +72,8 @@ function resolveSettings(): JiraSettings | null {
     readSettingWithEnvironmentOverride(ACCOUNT_BASE_URL, requiredSettingEnvVar(baseURLField)),
   );
   const rawEmail = readSettingWithEnvironmentOverride(ACCOUNT_EMAIL, requiredSettingEnvVar(emailField));
-  const rawApiToken = readSettingWithEnvironmentOverride(
-    ACCOUNT_TOKEN,
-    requiredSettingEnvVar(apiTokenField),
-  );
-  const rawCloudID = readSettingWithEnvironmentOverride(
-    ACCOUNT_CLOUD_ID,
-    requiredSettingEnvVar(cloudIDField),
-  );
+  const rawApiToken = readSettingWithEnvironmentOverride(ACCOUNT_TOKEN, requiredSettingEnvVar(apiTokenField));
+  const rawCloudID = readSettingWithEnvironmentOverride(ACCOUNT_CLOUD_ID, requiredSettingEnvVar(cloudIDField));
 
   if (!base || rawEmail === null || rawApiToken === null) {
     return null;
@@ -90,6 +84,19 @@ function resolveSettings(): JiraSettings | null {
   const cloudID = rawCloudID === null ? null : validateCloudID(rawCloudID);
 
   return { baseURL: base, email, apiToken, cloudID };
+}
+
+export function requireSettings(): JiraSettings {
+  const settings = resolveSettings();
+  if (!settings) {
+    throw new Error(
+      "Jira not configured. Save credentials with `triage-companion jira credentials <base-url> <email> <token> [cloud-id]` " +
+        "or set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, and optional JIRA_CLOUD_ID. " +
+        `Required permissions: ${jiraPermissionText}`,
+    );
+  }
+
+  return settings;
 }
 
 export function hasCredentials(): boolean {
@@ -127,7 +134,7 @@ export function removeCredentials(): void {
   ]);
 }
 
-function authHeader(settings: JiraSettings): string {
+export function authHeader(settings: JiraSettings): string {
   return jiraAPIKind(settings) === "data-center"
     ? `Bearer ${settings.apiToken}`
     : `Basic ${Buffer.from(`${settings.email}:${settings.apiToken}`).toString("base64")}`;
@@ -142,13 +149,13 @@ function validateCloudID(value: string): string {
   return value;
 }
 
-function jiraAPIBaseURL(settings: JiraSettings): string {
+export function jiraAPIBaseURL(settings: JiraSettings): string {
   return settings.cloudID === null
     ? settings.baseURL
     : `https://api.atlassian.com/ex/jira/${settings.cloudID}`;
 }
 
-function jiraAPIKind(settings: JiraSettings): JiraAPIKind {
+export function jiraAPIKind(settings: JiraSettings): JiraAPIKind {
   if (settings.cloudID !== null) {
     return "cloud";
   }
@@ -308,7 +315,7 @@ function htmlTitle(text: string): string | null {
   return title.length > 0 ? inlineErrorText(title) : null;
 }
 
-async function jiraErrorMessage(response: Response): Promise<string> {
+export async function jiraErrorMessage(response: Response): Promise<string> {
   const text = await response.text();
   if (!text.trim()) {
     return "Jira API error response body was empty.";
@@ -352,26 +359,17 @@ async function jiraErrorMessage(response: Response): Promise<string> {
   }
 }
 
-async function parseJiraJSON(response: Response, responseName: string): Promise<unknown> {
+export async function parseJiraJSON(response: Response, responseName: string): Promise<unknown> {
   const text = await response.text();
   try {
-    const parsed: unknown = JSON.parse(text);
-    return parsed;
+    return JSON.parse(text) as unknown;
   } catch {
     throw new Error(`${responseName} must be valid JSON.`);
   }
 }
 
 export async function listOpenTickets(): Promise<JiraTicket[]> {
-  const settings = resolveSettings();
-  if (!settings) {
-    throw new Error(
-      "Jira not configured. Save credentials with `triage-companion jira credentials <base-url> <email> <token> [cloud-id]` " +
-        "or set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, and optional JIRA_CLOUD_ID. " +
-        `Required permissions: ${jiraPermissionText}`,
-    );
-  }
-
+  const settings = requireSettings();
   const issues: JiraTicket[] = [];
   let nextPageToken: string | null = null;
   let startAt = 0;

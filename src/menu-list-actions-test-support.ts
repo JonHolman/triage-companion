@@ -9,6 +9,7 @@ import type {
   OpenPullRequest,
 } from "./clients/github-types.ts";
 import type { SnykIssue, SnykIssueSnapshot } from "./clients/snyk-types.ts";
+import { resetCache } from "./credential-store.ts";
 import { buildMenuTree } from "./menu.ts";
 import { setMenuListActionClientsForTest } from "./menu-list-actions.ts";
 import type { MenuAction } from "./menu-types.ts";
@@ -18,11 +19,67 @@ export type MenuListActionClientOverrides = Parameters<typeof setMenuListActionC
 
 export const originalCreateInterface = readline.createInterface;
 
+function withConfiguredServiceMenu<T>(serviceLabel: string, action: () => T): T {
+  const originalEnv = {
+    githubToken: process.env.GITHUB_TOKEN,
+    snykToken: process.env.SNYK_TOKEN,
+    jiraBaseURL: process.env.JIRA_BASE_URL,
+    jiraEmail: process.env.JIRA_EMAIL,
+    jiraToken: process.env.JIRA_API_TOKEN,
+  };
+
+  if (serviceLabel === "GitHub") {
+    process.env.GITHUB_TOKEN = "test-github-token";
+  }
+  if (serviceLabel === "Snyk") {
+    process.env.SNYK_TOKEN = "test-snyk-token";
+  }
+  if (serviceLabel === "Jira") {
+    process.env.JIRA_BASE_URL = "https://example.atlassian.net";
+    process.env.JIRA_EMAIL = "dev@example.com";
+    process.env.JIRA_API_TOKEN = "test-jira-token";
+  }
+  resetCache();
+
+  try {
+    return action();
+  } finally {
+    if (originalEnv.githubToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalEnv.githubToken;
+    }
+    if (originalEnv.snykToken === undefined) {
+      delete process.env.SNYK_TOKEN;
+    } else {
+      process.env.SNYK_TOKEN = originalEnv.snykToken;
+    }
+    if (originalEnv.jiraBaseURL === undefined) {
+      delete process.env.JIRA_BASE_URL;
+    } else {
+      process.env.JIRA_BASE_URL = originalEnv.jiraBaseURL;
+    }
+    if (originalEnv.jiraEmail === undefined) {
+      delete process.env.JIRA_EMAIL;
+    } else {
+      process.env.JIRA_EMAIL = originalEnv.jiraEmail;
+    }
+    if (originalEnv.jiraToken === undefined) {
+      delete process.env.JIRA_API_TOKEN;
+    } else {
+      process.env.JIRA_API_TOKEN = originalEnv.jiraToken;
+    }
+    resetCache();
+  }
+}
+
 export function serviceMenuAction(serviceLabel: string, actionLabel: string): MenuAction {
-  const serviceMenu = buildMenuTree().items.find((item) => item.label === serviceLabel)?.submenu;
-  const action = serviceMenu?.items.find((item) => item.label === actionLabel)?.action;
-  assert.ok(action);
-  return action;
+  return withConfiguredServiceMenu(serviceLabel, () => {
+    const serviceMenu = buildMenuTree().items.find((item) => item.label === serviceLabel)?.submenu;
+    const action = serviceMenu?.items.find((item) => item.label === actionLabel)?.action;
+    assert.ok(action);
+    return action;
+  });
 }
 
 export async function withMenuListActionClients(

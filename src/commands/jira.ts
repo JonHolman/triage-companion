@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import * as jira from "../clients/jira.ts";
+import * as jiraActions from "../clients/jira-actions.ts";
 import { ENV } from "../config-model.ts";
 import { bold, dim, responsiveTable } from "../format.ts";
 import { getServiceDefinition } from "../config-model.ts";
@@ -94,6 +95,65 @@ export function register(program: Command): void {
           `${ENV.JIRA_API_TOKEN} still provides the effective Jira API token when set.`,
         );
         printCloudIDOverrideMessage("effective");
+      });
+    });
+
+  cmd
+    .command("create-ticket")
+    .description("Create a Jira ticket")
+    .argument("<project-key>", "Jira project key")
+    .argument("<summary>", "Jira ticket summary")
+    .option("--type <issue-type>", "Jira issue type", "Task")
+    .option("--description <text>", "Jira issue description")
+    .action((
+      projectKey: string,
+      summary: string,
+      opts: { type: string; description?: string },
+    ) => {
+      return runCommand("jira create-ticket", async () => {
+        const ticket = await jiraActions.createTicket({
+          projectKey,
+          issueType: opts.type,
+          summary,
+          description: opts.description,
+        });
+        console.log(`✓ Jira ticket ${ticket.key} created: ${ticket.url}`);
+      });
+    });
+
+  cmd
+    .command("comment-ticket")
+    .description("Add a comment to a Jira ticket")
+    .argument("<issue-key>", "Jira issue key")
+    .argument("<comment>", "Comment text")
+    .action((issueKey: string, comment: string) => {
+      return runCommand("jira comment-ticket", async () => {
+        const result = await jiraActions.addComment(issueKey, comment);
+        console.log(`✓ Jira comment ${result.id} added to ${result.issueKey}.`);
+      });
+    });
+
+  cmd
+    .command("assign-sprint")
+    .description("Assign a Jira ticket to a sprint")
+    .argument("<issue-key>", "Jira issue key")
+    .argument("<sprint-id>", "Jira sprint ID")
+    .action((issueKey: string, sprintID: string) => {
+      return runCommand("jira assign-sprint", async () => {
+        await jiraActions.assignTicketToSprint(issueKey, sprintID);
+        console.log(`✓ Jira ticket ${issueKey.toUpperCase()} assigned to sprint ${sprintID}.`);
+      });
+    });
+
+  cmd
+    .command("change-status")
+    .description("Change a Jira ticket status")
+    .argument("<issue-key>", "Jira issue key")
+    .argument("<status>", "Target status")
+    .action((issueKey: string, status: string) => {
+      return runCommand("jira change-status", async () => {
+        const result = await jiraActions.changeTicketStatus(issueKey, status);
+        console.log(`✓ Jira ticket ${result.issueKey} changed to ${result.status}.`);
       });
     });
 

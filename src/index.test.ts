@@ -88,7 +88,7 @@ function runMenuActionRoundTripWithTTY(configDir: string): SpawnSyncReturns<stri
     `spawn ${spawnCommand}`,
     "expect \"*Use arrow keys and Enter*\"",
     "after 100",
-    'send "\\033\\[B\\033\\[B\\033\\[B\\033\\[B\\033\\[B"',
+    'send "\\033\\[B\\033\\[B\\033\\[B"',
     "after 100",
     'send "\\r"',
     "expect \"*View configuration*\"",

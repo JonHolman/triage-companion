@@ -39,6 +39,13 @@ export interface PrDetails {
   author: string | null;
 }
 
+export interface PullRequestMergeResult {
+  repositoryFullName: string;
+  pullRequestNumber: string;
+  sha: string;
+  message: string;
+}
+
 export interface PullRequestSummary {
   state: string | null;
   headRef: string;
@@ -54,11 +61,18 @@ export interface OpenPullRequest {
   headSHA: string;
 }
 
+export interface SkippedOpenPullRequestRepository {
+  repositoryPath: string;
+  repositoryFullName: string;
+  reason: string;
+}
+
 export interface OpenPullRequestOptions {
   repositoryPaths?: string[];
   searchRoots?: string[];
   authorRegex?: string | null;
   githubLogin?: string | null;
+  onSkippedRepository?: (repository: SkippedOpenPullRequestRepository) => void;
 }
 
 export interface DependabotAlert {
@@ -111,5 +125,5 @@ export interface GitHubRef {
 }
 
 export interface GhFetchOptions {
-  method?: "GET" | "PATCH";
+  method?: "GET" | "PATCH" | "PUT";
 }

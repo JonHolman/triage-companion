@@ -5,6 +5,7 @@ export {
   listSecurityAlertNotificationRepositories,
   markNotificationRead,
 } from "./github-notifications.ts";
+export { mergePullRequestFromWebURL } from "./github-pull-request-merge.ts";
 export { listMyOpenPullRequests } from "./github-prs.ts";
 export { resolveCurrentRepositoryFullName } from "./github-remotes.ts";
 export { listSecurityAlerts } from "./github-alerts.ts";

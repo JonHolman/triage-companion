@@ -1,11 +1,14 @@
-export type FetchHandler = (input: URL | Request | string) => Promise<Response> | Response;
+export type FetchHandler = (
+  input: URL | Request | string,
+  init?: RequestInit,
+) => Promise<Response> | Response;
 
 export async function withMockFetch(
   handler: FetchHandler,
   run: () => Promise<void> | void,
 ): Promise<void> {
   const originalFetch = global.fetch;
-  global.fetch = (async (input: URL | Request | string) => handler(input)) as typeof fetch;
+  global.fetch = (async (input: URL | Request | string, init?: RequestInit) => handler(input, init)) as typeof fetch;
   try {
     await run();
   } finally {

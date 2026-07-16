@@ -44,6 +44,7 @@ triage-companion github notifications
 triage-companion github failed-workflows
 triage-companion snyk issues
 triage-companion jira tickets
+triage-companion jira create-ticket ABC "Fix checkout retry"
 triage-companion git dirty
 ```
 
@@ -52,18 +53,19 @@ Run `triage-companion --help` to display the standard CLI help.
 Run `triage-companion menu` to open the same menu explicitly.
 Use the arrow keys to move, `Enter` to select, and `Esc` or `q` to go back.
 The menu exposes status, GitHub, Snyk, Jira, Git, and configuration actions.
-When GitHub, Snyk, or Jira is not configured, that service menu puts its `Credentials` submenu before commands that call the service.
+The GitHub menu always includes local open-PR discovery actions; token-backed GitHub actions, Snyk, and Jira service menus are shown only when their required credentials are configured.
 Menu list views show up to 10 items at a time. Use Up/Down to choose an item, `n` and `p` to page, and `Esc` or `q` to leave the list.
 
 The menu can:
 
 - View status without exposing secrets.
-- Set, replace, or remove GitHub, Snyk, and Jira credentials from separate `Credentials` submenus.
-- Set or reset the Snyk US-hosted REST API base URL.
+- Set, replace, or remove GitHub, Snyk, and Jira credentials from the Configuration menu.
+- Set or reset the Snyk US-hosted REST API base URL from the Configuration menu.
 - View configured values without printing secret values.
 - Inspect GitHub notifications, failed GitHub Actions workflows, GitHub security alerts, Snyk issues, severity-filtered Snyk issues, Jira tickets, and Git status.
+- Create Jira tickets, comment on Jira tickets, assign Jira tickets to sprints, and change Jira ticket status from the Jira menu.
 - Mark or dismiss a selected GitHub notification from the notification list with `m` or `d`; both mark the notification read so it does not appear in the next default unread notification run.
-- List your open GitHub PRs normally, with a GitHub login override, or with a custom author regex.
+- List your open GitHub PRs from local GitHub clones normally, with a GitHub login override, or with a custom author regex.
 - Edit Git search roots and clear stored roots back to the defaults when no env override is set.
 
 ## Installation entrypoints
@@ -80,6 +82,33 @@ Run the installed binary without a build step:
 npm link
 triage-companion status
 ```
+
+## Apple apps
+
+The native macOS and iOS apps live in `apple/TriageCompanion.xcodeproj`.
+They provide credential setup, status, GitHub notifications, GitHub Dependabot alerts, failed GitHub Actions workflow runs discovered from notification repositories, Snyk open issues, and assigned Jira tickets.
+
+Build the macOS app:
+
+```sh
+xcodebuild -project apple/TriageCompanion.xcodeproj -scheme "TriageCompanion macOS" -destination "platform=macOS" build
+```
+
+Build the iOS simulator app:
+
+```sh
+xcodebuild -project apple/TriageCompanion.xcodeproj -scheme "TriageCompanion iOS" -destination "generic/platform=iOS Simulator" build
+```
+
+The project is generated from `apple/project.yml` with XcodeGen.
+Regenerate it after changing the spec:
+
+```sh
+xcodegen -s apple/project.yml -p apple
+```
+
+The macOS app reads and writes the same `~/Library/Application Support/Triage Companion/secrets.json` store as the CLI.
+The iOS app stores credentials in the app Keychain.
 
 ## Setup
 
@@ -132,6 +161,7 @@ Minimum permissions:
 
 - `github notifications`: classic personal access token with the `notifications` scope; GitHub does not support fine-grained PATs for notification endpoints
 - `github mark-read`: classic personal access token with the `notifications` scope; GitHub does not support fine-grained PATs for notification endpoints
+- menu `GitHub Notifications` merge PR action: classic personal access token with `notifications` plus `repo` for private repositories or `public_repo` for public repositories; the token account must have write access
 - `github security-alerts`: fine-grained token with `Dependabot alerts: read`; classic token with `security_events` for public repositories or `repo` for private repositories
 - `github failed-workflows`: fine-grained token with `Actions: read`; classic token with `repo` for private repositories
 - `github my-open-prs`: no token is required for local git discovery, but if local git identity is unavailable a configured token lets the CLI infer your GitHub login; a token is also used to read PR or commit metadata that local git cannot provide
@@ -144,11 +174,12 @@ When you pass `--github-login`, use the exact GitHub login with no surrounding w
 When you pass `--search-roots` to `github my-open-prs`, use a JSON array of paths and those roots override the default discovery roots for that invocation. Blank values are invalid; pass `[]` to disable discovery for that run.
 Home-relative search roots such as `~/repos` are supported there too.
 If `github my-open-prs` reports a `403` while checking a pull request in a scanned repository, authorize SSO for that organization or use a token from an account with repository access; narrow the Git search roots if that local clone should not be scanned.
-If it reports that GitHub remote refs cannot be read, fix the clone's `origin` access or narrow Git search roots to exclude stale or inaccessible clones.
+Automatically discovered clones whose GitHub remote refs cannot be read are skipped and reported; explicit local paths still fail so direct checks expose stale or inaccessible `origin` remotes.
 If multiple pull requests share the same commit SHA, `github my-open-prs` matches them by the pull request head branch instead of attributing every matching SHA to the same local branch.
 Set `TRIAGE_COMPANION_GITHUB_PR_IGNORE_BRANCHES` to `[]` if you do not want the default `main`, `master`, and `production` branch exclusions.
 `github mark-read` expects the numeric notification thread ID exactly as shown, with no surrounding whitespace.
 GitHub notification rows are built from the notification payload first; if optional pull request detail enrichment returns `403` or `404`, the row still links to the pull request and omits the PR state/author enrichment.
+In the interactive notification list, press `y` on an open pull request notification and type `yes` to merge it.
 
 ### Snyk
 
@@ -193,6 +224,10 @@ If `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, or `JIRA_CLOUD_ID` is set, t
 Minimum permissions:
 
 - `jira tickets`: Jira permissions `Browse Projects` and `View Issues` in the projects you want to query; scoped Atlassian API tokens also need the Jira read scopes for issue search
+- `jira create-ticket`: Jira permission `Create Issues` in the target project; scoped Atlassian API tokens also need Jira issue write scopes
+- `jira comment-ticket`: Jira permissions `Browse Projects` and `Add Comments` on the target issue; scoped Atlassian API tokens also need Jira comment write scopes
+- `jira assign-sprint`: Jira permission `Schedule Issues` and access to the target open or active sprint; scoped Atlassian API tokens also need Jira Software sprint write scopes
+- `jira change-status`: Jira permissions `Browse Projects` and `Transition Issues` on the target issue; scoped Atlassian API tokens also need transition read and issue write scopes
 
 ### Token permissions and feature requirements
 
@@ -326,6 +361,10 @@ triage-companion snyk reset-api-base-url
 triage-companion jira credentials https://your-company.atlassian.net user@your-company.com <token> [cloud-id]
 triage-companion jira remove-credentials
 triage-companion jira tickets [--json]
+triage-companion jira create-ticket <project-key> <summary> [--type Task] [--description <text>]
+triage-companion jira comment-ticket <issue-key> <comment>
+triage-companion jira assign-sprint <issue-key> <sprint-id>
+triage-companion jira change-status <issue-key> <status>
 triage-companion git dirty [--limit <n>] [--search <query>] [--json]
 triage-companion git status [--search <query>]
 ```

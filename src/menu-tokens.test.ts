@@ -11,11 +11,10 @@ import { buildMenuTree, runMenuAction } from "./menu.ts";
 import { resetCache } from "./credential-store.ts";
 import type { MenuNode } from "./menu-types.ts";
 
-function credentialsMenu(serviceLabel: string): MenuNode {
-  const serviceMenu = buildMenuTree().items.find((item) => item.label === serviceLabel)?.submenu;
-  const credentials = serviceMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-  assert.ok(credentials);
-  return credentials;
+function configurationMenu(): MenuNode {
+  const menu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+  assert.ok(menu);
+  return menu;
 }
 
 describe("menu token actions", () => {
@@ -42,10 +41,7 @@ describe("menu token actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const menu = buildMenuTree();
-    const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const credentials = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const setCredentials = credentials?.items.find((item) => item.label === "Set or replace credentials");
+    const setCredentials = configurationMenu().items.find((item) => item.label === "Set or replace Jira credentials");
 
     assert.ok(setCredentials?.action);
 
@@ -98,7 +94,7 @@ describe("menu token actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const removeToken = credentialsMenu("GitHub").items.find((item) => item.label === "Remove token");
+    const removeToken = configurationMenu().items.find((item) => item.label === "Remove GitHub token");
 
     assert.ok(removeToken?.action);
 
@@ -140,7 +136,7 @@ describe("menu token actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const removeToken = credentialsMenu("Snyk").items.find((item) => item.label === "Remove token");
+    const removeToken = configurationMenu().items.find((item) => item.label === "Remove Snyk token");
 
     assert.ok(removeToken?.action);
 
@@ -186,7 +182,7 @@ describe("menu token actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const removeToken = credentialsMenu("GitHub").items.find((item) => item.label === "Remove token");
+    const removeToken = configurationMenu().items.find((item) => item.label === "Remove GitHub token");
     assert.ok(removeToken?.action);
 
     const originalStdoutWrite = process.stdout.write;
@@ -236,7 +232,7 @@ describe("menu token actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const setToken = credentialsMenu("GitHub").items.find((item) => item.label === "Set or replace token");
+    const setToken = configurationMenu().items.find((item) => item.label === "Set or replace GitHub token");
 
     assert.ok(setToken?.action);
 
@@ -296,7 +292,7 @@ describe("menu token actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const setToken = credentialsMenu("Snyk").items.find((item) => item.label === "Set or replace token");
+    const setToken = configurationMenu().items.find((item) => item.label === "Set or replace Snyk token");
 
     assert.ok(setToken?.action);
 

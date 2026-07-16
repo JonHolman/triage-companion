@@ -18,6 +18,12 @@ import { textEnvOverrideState } from "./config-path.ts";
 import { ENV, getServiceDefinition } from "./config-model.ts";
 import { dim } from "./format.ts";
 import {
+  assignJiraTicketToSprint,
+  changeJiraTicketStatus,
+  commentOnJiraTicket,
+  createJiraTicket,
+} from "./menu-jira-actions.ts";
+import {
   listGitHubFailedWorkflows,
   listGitHubNotifications,
   listGitHubOpenPullRequests,
@@ -361,27 +367,21 @@ async function clearSearchRootsSetting(): Promise<void> {
   console.log("Git search roots reset to defaults.");
 }
 
-function buildServiceMenu(
-  title: string,
-  configured: boolean,
-  workItems: MenuItem[],
-  credentialItems: MenuItem[],
-  refresh: () => MenuNode,
-): MenuNode {
-  const credentialsItem: MenuItem = {
-    label: "Credentials",
-    submenu: { title: `${title} Credentials`, items: [...credentialItems, { label: "Back" }] },
-  };
-  const items = configured ? [...workItems, credentialsItem] : [credentialsItem, ...workItems];
-
-  return { title, items: [...items, { label: "Back" }], refresh };
-}
-
 function buildGitHubMenu(): MenuNode {
-  return buildServiceMenu(
-    "GitHub",
-    github.hasToken(),
-    [
+  const items: MenuItem[] = [
+    { label: "List my open PRs", action: listGitHubOpenPullRequests },
+    {
+      label: "List my open PRs with login override",
+      action: listGitHubOpenPullRequestsWithLogin,
+    },
+    {
+      label: "List my open PRs with author regex",
+      action: listGitHubOpenPullRequestsWithAuthorRegex,
+    },
+  ];
+
+  if (github.hasToken()) {
+    items.unshift(
       { label: "List notifications", action: listGitHubNotifications },
       {
         label: "Mark notification read",
@@ -392,77 +392,93 @@ function buildGitHubMenu(): MenuNode {
           }
         },
       },
-      { label: "List my open PRs", action: listGitHubOpenPullRequests },
-      {
-        label: "List my open PRs with login override",
-        action: listGitHubOpenPullRequestsWithLogin,
-      },
-      {
-        label: "List my open PRs with author regex",
-        action: listGitHubOpenPullRequestsWithAuthorRegex,
-      },
+    );
+    items.push(
       { label: "List security alerts", action: listGitHubSecurityAlerts },
       { label: "List failed workflows", action: listGitHubFailedWorkflows },
-    ],
-    [{ label: "Set or replace token", action: setGitHubToken }, { label: "Remove token", action: removeGitHubToken }],
-    buildGitHubMenu,
-  );
+    );
+  }
+
+  items.push({ label: "Back" });
+
+  return {
+    title: "GitHub",
+    items,
+  };
 }
 
 function buildSnykMenu(): MenuNode {
-  return buildServiceMenu(
-    "Snyk",
-    snyk.hasToken(),
-    [
+  return {
+    title: "Snyk",
+    items: [
       { label: "List issues", action: listSnykIssues },
       { label: "List issues by severity", action: listSnykIssuesBySeverity },
+      { label: "Back" },
     ],
-    [
-      { label: "Set or replace token", action: setSnykToken },
-      { label: "Set API base URL", action: setSnykAPIBaseURL },
-      { label: "Reset API base URL", action: resetSnykAPIBaseURL },
-      { label: "Remove token", action: removeSnykToken },
-    ],
-    buildSnykMenu,
-  );
+  };
 }
 
 function buildJiraMenu(): MenuNode {
-  return buildServiceMenu(
-    "Jira",
-    jira.hasCredentials(),
-    [{ label: "List tickets", action: listJiraTickets }],
-    [{ label: "Set or replace credentials", action: setJiraCredentials }, { label: "Remove credentials", action: removeJiraCredentials }],
-    buildJiraMenu,
-  );
+  return {
+    title: "Jira",
+    items: [
+      { label: "List tickets", action: listJiraTickets },
+      { label: "Create ticket", action: createJiraTicket },
+      { label: "Comment on ticket", action: commentOnJiraTicket },
+      { label: "Assign ticket to sprint", action: assignJiraTicketToSprint },
+      { label: "Change ticket status", action: changeJiraTicketStatus },
+      { label: "Back" },
+    ],
+  };
+}
+
+function buildConfigurationMenu(): MenuNode {
+  return {
+    title: "Configuration",
+    items: [
+      { label: "View configuration", action: () => { process.stdout.write(buildConfigurationSummary()); } },
+      { label: "Set or replace GitHub token", action: setGitHubToken },
+      { label: "Remove GitHub token", action: removeGitHubToken },
+      { label: "Set or replace Snyk token", action: setSnykToken },
+      { label: "Remove Snyk token", action: removeSnykToken },
+      { label: "Set Snyk API base URL", action: setSnykAPIBaseURL },
+      { label: "Reset Snyk API base URL", action: resetSnykAPIBaseURL },
+      { label: "Set or replace Jira credentials", action: setJiraCredentials },
+      { label: "Remove Jira credentials", action: removeJiraCredentials },
+      { label: "Edit git search roots", action: editSearchRoots },
+      { label: "Reset git search roots", action: clearSearchRootsSetting },
+      { label: "Back" },
+    ],
+  };
 }
 
 export function buildMenuTree(): MenuNode {
+  const items: MenuItem[] = [
+    { label: "Status", action: () => runCli(["status"]) },
+    { label: "GitHub", submenu: buildGitHubMenu() },
+  ];
+  if (snyk.hasToken()) {
+    items.push({ label: "Snyk", submenu: buildSnykMenu() });
+  }
+  if (jira.hasCredentials()) {
+    items.push({ label: "Jira", submenu: buildJiraMenu() });
+  }
+  items.push(
+    {
+      label: "Git",
+      submenu: { title: "Git", items: [
+        { label: "List dirty repositories", action: () => runCli(["git", "dirty"]) },
+        { label: "Show full git status", action: () => runCli(["git", "status"]) },
+        { label: "Back" },
+      ] },
+    },
+    { label: "Configuration", submenu: buildConfigurationMenu() },
+    { label: "Exit" },
+  );
+
   return {
     title: "triage-companion",
-    items: [
-      { label: "Status", action: () => runCli(["status"]) },
-      { label: "GitHub", submenu: buildGitHubMenu() },
-      { label: "Snyk", submenu: buildSnykMenu() },
-      { label: "Jira", submenu: buildJiraMenu() },
-      {
-        label: "Git",
-        submenu: { title: "Git", items: [
-          { label: "List dirty repositories", action: () => runCli(["git", "dirty"]) },
-          { label: "Show full git status", action: () => runCli(["git", "status"]) },
-          { label: "Back" },
-        ] },
-      },
-      {
-        label: "Configuration",
-        submenu: { title: "Configuration", items: [
-          { label: "View configuration", action: () => { process.stdout.write(buildConfigurationSummary()); } },
-          { label: "Edit git search roots", action: editSearchRoots },
-          { label: "Reset git search roots", action: clearSearchRootsSetting },
-          { label: "Back" },
-        ] },
-      },
-      { label: "Exit" },
-    ],
+    items,
+    refresh: buildMenuTree,
   };
 }

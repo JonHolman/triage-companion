@@ -33,10 +33,8 @@ describe("menu Jira actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const menu = buildMenuTree();
-    const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const credentialsMenu = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const setCredentials = credentialsMenu?.items.find((item) => item.label === "Set or replace credentials");
+    const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+    const setCredentials = configurationMenu?.items.find((item) => item.label === "Set or replace Jira credentials");
 
     assert.ok(setCredentials?.action);
 
@@ -105,10 +103,8 @@ describe("menu Jira actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const menu = buildMenuTree();
-    const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const credentialsMenu = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const setCredentials = credentialsMenu?.items.find((item) => item.label === "Set or replace credentials");
+    const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+    const setCredentials = configurationMenu?.items.find((item) => item.label === "Set or replace Jira credentials");
 
     assert.ok(setCredentials?.action);
 
@@ -193,10 +189,8 @@ describe("menu Jira actions", () => {
       once: () => undefined,
     })) as unknown) as typeof readline.createInterface;
 
-    const menu = buildMenuTree();
-    const jiraMenu = menu.items.find((item) => item.label === "Jira")?.submenu;
-    const credentialsMenu = jiraMenu?.items.find((item) => item.label === "Credentials")?.submenu;
-    const setCredentials = credentialsMenu?.items.find((item) => item.label === "Set or replace credentials");
+    const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
+    const setCredentials = configurationMenu?.items.find((item) => item.label === "Set or replace Jira credentials");
 
     assert.ok(setCredentials?.action);
 

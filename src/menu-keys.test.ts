@@ -61,12 +61,13 @@ describe("parseMenuInput", () => {
       keys: [{ name: "q", sequence: "q" }],
       remainder: "",
     });
-    assert.deepEqual(parseMenuInput("npmd"), {
+    assert.deepEqual(parseMenuInput("npmdy"), {
       keys: [
         { name: "n", sequence: "n" },
         { name: "p", sequence: "p" },
         { name: "m", sequence: "m" },
         { name: "d", sequence: "d" },
+        { name: "y", sequence: "y" },
       ],
       remainder: "",
     });
