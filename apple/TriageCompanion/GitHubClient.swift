@@ -61,6 +61,8 @@ struct GitHubClient {
                 URLQueryItem(name: "per_page", value: String(pageSize))
             ]
         )
+        var seen = Set<String>()
+        try recordGitHubPaginationURL(&seen, url, context: "GitHub notifications pagination")
         var items: [GitHubNotificationAPI] = []
 
         while items.count < limit {
@@ -76,10 +78,12 @@ struct GitHubClient {
             guard let next = try nextURL(from: response.value(forHTTPHeaderField: "Link")) else {
                 break
             }
+            let validatedNext = try validatedGitHubPaginationURL(next, currentURL: url)
             if page.isEmpty {
                 throw TriageCompanionError.message("GitHub notifications returned an empty page before pagination finished.")
             }
-            url = next
+            try recordGitHubPaginationURL(&seen, validatedNext, context: "GitHub notifications pagination")
+            url = validatedNext
         }
 
         return Array(items.prefix(limit))
@@ -132,6 +136,8 @@ struct GitHubClient {
                     URLQueryItem(name: "per_page", value: "100")
                 ]
             )
+            var seen = Set<String>()
+            try recordGitHubPaginationURL(&seen, url, context: "GitHub Dependabot alerts pagination")
 
             while true {
                 let (page, response) = try await http.decoded(
@@ -143,10 +149,12 @@ struct GitHubClient {
                 guard let next = try nextURL(from: response.value(forHTTPHeaderField: "Link")) else {
                     break
                 }
+                let validatedNext = try validatedGitHubPaginationURL(next, currentURL: url)
                 if page.isEmpty {
                     throw TriageCompanionError.message("GitHub Dependabot alerts returned an empty page before pagination finished.")
                 }
-                url = next
+                try recordGitHubPaginationURL(&seen, validatedNext, context: "GitHub Dependabot alerts pagination")
+                url = validatedNext
             }
         }
 
@@ -203,6 +211,8 @@ struct GitHubClient {
                 ]
             )
             var repositoryRuns: [FailedWorkflowRunItem] = []
+            var seen = Set<String>()
+            try recordGitHubPaginationURL(&seen, url, context: "GitHub workflow runs pagination")
 
             while repositoryRuns.count < maxPerRepository {
                 let (page, response) = try await http.decoded(
@@ -218,10 +228,12 @@ struct GitHubClient {
                 guard let next = try nextURL(from: response.value(forHTTPHeaderField: "Link")) else {
                     break
                 }
+                let validatedNext = try validatedGitHubPaginationURL(next, currentURL: url)
                 if page.workflowRuns.isEmpty {
                     throw TriageCompanionError.message("GitHub workflow runs returned an empty page before pagination finished.")
                 }
-                url = next
+                try recordGitHubPaginationURL(&seen, validatedNext, context: "GitHub workflow runs pagination")
+                url = validatedNext
             }
             runs.append(contentsOf: repositoryRuns.prefix(maxPerRepository))
         }
@@ -280,6 +292,108 @@ struct GitHubClient {
         }
 
         return "\(encodedPathComponent(parts[0]))/\(encodedPathComponent(parts[1]))"
+    }
+
+    private func validatedGitHubPaginationURL(_ value: URL, currentURL: URL) throws -> URL {
+        let url = try validatedGitHubAPIURL(value)
+        let current = try validatedGitHubAPIURL(currentURL)
+
+        guard rawPathSegments(url) == rawPathSegments(current) else {
+            throw TriageCompanionError.message("GitHub API pagination link must stay on the current API route.")
+        }
+        guard stableGitHubPaginationQuery(url) == stableGitHubPaginationQuery(current) else {
+            throw TriageCompanionError.message("GitHub API pagination link must keep the current API query.")
+        }
+
+        return url
+    }
+
+    private func validatedGitHubAPIURL(_ url: URL) throws -> URL {
+        guard url.scheme?.lowercased() == "https", url.host?.lowercased() == "api.github.com" else {
+            throw TriageCompanionError.message("GitHub API pagination link must use https://api.github.com.")
+        }
+        guard url.user == nil, url.password == nil else {
+            throw TriageCompanionError.message("GitHub API pagination link must not include credentials.")
+        }
+        guard url.port == nil else {
+            throw TriageCompanionError.message("GitHub API pagination link must not include a port.")
+        }
+        guard url.fragment == nil else {
+            throw TriageCompanionError.message("GitHub API pagination link must not include fragments.")
+        }
+        guard rawPathSegments(url) != nil else {
+            throw TriageCompanionError.message("GitHub API pagination link must stay on the current API route.")
+        }
+
+        return url
+    }
+
+    private func rawPathSegments(_ url: URL) -> [String]? {
+        guard let path = URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedPath else {
+            return nil
+        }
+        let parts = path.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.first == "" else {
+            return nil
+        }
+        let segments = parts.last == "" ? parts.dropFirst().dropLast() : parts.dropFirst()
+        if segments.contains(where: { $0.isEmpty }) {
+            return nil
+        }
+
+        var decoded: [String] = []
+        for segment in segments {
+            guard let value = String(segment).removingPercentEncoding, value != ".", value != ".." else {
+                return nil
+            }
+            decoded.append(value)
+        }
+
+        return decoded
+    }
+
+    private func stableGitHubPaginationQuery(_ url: URL) -> String {
+        sortedQuery(url, excluding: ["page", "after", "before"])
+    }
+
+    private func gitHubPaginationLoopKey(_ url: URL) throws -> String {
+        let parsed = try validatedGitHubAPIURL(url)
+        return "\(parsed.scheme!)://\(parsed.host!)\(parsed.path)?\(sortedQuery(parsed, excluding: []))"
+    }
+
+    private func recordGitHubPaginationURL(_ seen: inout Set<String>, _ url: URL, context: String) throws {
+        let key = try gitHubPaginationLoopKey(url)
+        guard seen.insert(key).inserted else {
+            throw TriageCompanionError.message("\(context) repeated a previously fetched page.")
+        }
+    }
+
+    private func sortedQuery(_ url: URL, excluding excludedNames: Set<String>) -> String {
+        guard let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
+            return ""
+        }
+
+        return queryItems
+            .filter { !excludedNames.contains($0.name) }
+            .sorted {
+                if $0.name == $1.name {
+                    return ($0.value ?? "") < ($1.value ?? "")
+                }
+                return $0.name < $1.name
+            }
+            .map { item in
+                if let value = item.value {
+                    return "\(encodedQueryComponent(item.name))=\(encodedQueryComponent(value))"
+                }
+                return encodedQueryComponent(item.name)
+            }
+            .joined(separator: "&")
+    }
+
+    private func encodedQueryComponent(_ value: String) -> String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&=+")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 }
 

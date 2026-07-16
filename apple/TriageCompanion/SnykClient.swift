@@ -145,7 +145,8 @@ struct SnykClient {
             throw TriageCompanionError.message("Snyk API route was invalid.")
         }
         var url = urlWithQuery(routeURL, queryItems: queryItems)
-        var seen = Set([url.absoluteString])
+        var seen = Set<String>()
+        try recordSnykPaginationURL(&seen, url)
         var records: [[String: Any]] = []
 
         while true {
@@ -161,15 +162,11 @@ struct SnykClient {
             guard let links = payload["links"] as? [String: Any], let next = try paginationHref(from: links["next"]) else {
                 break
             }
-            guard let nextURL = resolvedPaginationURL(next, currentURL: url) else {
-                throw TriageCompanionError.message("Snyk pagination link was invalid.")
-            }
+            let nextURL = try resolvedPaginationURL(next, currentURL: url)
             if data.isEmpty {
                 throw TriageCompanionError.message("Snyk response returned an empty page before pagination finished.")
             }
-            if !seen.insert(nextURL.absoluteString).inserted {
-                throw TriageCompanionError.message("Snyk pagination repeated a previously fetched page.")
-            }
+            try recordSnykPaginationURL(&seen, nextURL)
             url = nextURL
         }
 
@@ -190,12 +187,182 @@ struct SnykClient {
         throw TriageCompanionError.message("Snyk pagination link must be a URL string.")
     }
 
-    private func resolvedPaginationURL(_ value: String, currentURL: URL) -> URL? {
-        if value.hasPrefix("/") && !value.hasPrefix("//") {
-            return URL(string: "\(baseURL.absoluteString)\(value)")
+    private func resolvedPaginationURL(_ value: String, currentURL: URL) throws -> URL {
+        guard rawPathSegments(value) != nil else {
+            throw TriageCompanionError.message("Snyk pagination link must stay on the current API route.")
         }
 
-        return URL(string: value, relativeTo: currentURL)?.absoluteURL
+        let resolved: URL?
+        if value.hasPrefix("/") && !value.hasPrefix("//") {
+            resolved = URL(string: "\(baseURL.absoluteString)\(value)")
+        } else {
+            resolved = URL(string: value, relativeTo: currentURL)?.absoluteURL
+        }
+
+        guard let resolved else {
+            throw TriageCompanionError.message("Snyk pagination link must be a valid URL.")
+        }
+
+        return try validatedPaginationURL(resolved, currentURL: currentURL)
+    }
+
+    private func validatedPaginationURL(_ value: URL, currentURL: URL) throws -> URL {
+        guard value.user == nil, value.password == nil else {
+            throw TriageCompanionError.message("Snyk pagination link must not include credentials.")
+        }
+        guard value.port == nil else {
+            throw TriageCompanionError.message("Snyk pagination link must not include a port.")
+        }
+        guard value.fragment == nil else {
+            throw TriageCompanionError.message("Snyk pagination link must not include fragments.")
+        }
+        guard isSupportedSnykAPIURL(value) else {
+            throw TriageCompanionError.message("Snyk pagination link must stay on a US-hosted REST API base URL.")
+        }
+        guard sameOrigin(value, currentURL),
+              rawPathSegments(value.absoluteString) == rawPathSegments(currentURL.absoluteString) else {
+            throw TriageCompanionError.message("Snyk pagination link must stay on the current API route.")
+        }
+
+        guard let version = queryValue(value, name: "version") else {
+            throw TriageCompanionError.message("Snyk pagination link must include a REST API version.")
+        }
+        guard version == queryValue(currentURL, name: "version") else {
+            throw TriageCompanionError.message("Snyk pagination link must keep the current REST API version.")
+        }
+        guard stableSnykPaginationQuery(value) == stableSnykPaginationQuery(currentURL) else {
+            throw TriageCompanionError.message("Snyk pagination link must keep the current API query.")
+        }
+
+        return value
+    }
+
+    private func recordSnykPaginationURL(_ seen: inout Set<String>, _ url: URL) throws {
+        let key = snykPaginationLoopKey(url)
+        guard seen.insert(key).inserted else {
+            throw TriageCompanionError.message("Snyk pagination repeated a previously fetched page.")
+        }
+    }
+
+    private func snykPaginationLoopKey(_ url: URL) -> String {
+        normalizedURLString(url, excluding: [])
+    }
+
+    private func stableSnykPaginationQuery(_ url: URL) -> String {
+        sortedQuery(url, excluding: ["page", "starting_after", "ending_before"])
+    }
+
+    private func isSupportedSnykAPIURL(_ url: URL) -> Bool {
+        [defaultSnykAPIBaseURL, alternateSnykAPIBaseURL].contains { value in
+            guard let allowedURL = URL(string: value), sameOrigin(url, allowedURL) else {
+                return false
+            }
+            let path = url.path
+            let allowedPath = allowedURL.path
+            return path == allowedPath || path.hasPrefix("\(allowedPath)/")
+        }
+    }
+
+    private func sameOrigin(_ left: URL, _ right: URL) -> Bool {
+        left.scheme?.lowercased() == right.scheme?.lowercased()
+            && left.host?.lowercased() == right.host?.lowercased()
+            && left.port == right.port
+    }
+
+    private func rawPathSegments(_ value: String) -> [String]? {
+        let pathAndSuffix: String
+        if let schemeRange = value.range(of: "//") {
+            let afterAuthority = value[schemeRange.upperBound...]
+            if let pathStart = afterAuthority.firstIndex(of: "/") {
+                pathAndSuffix = String(afterAuthority[pathStart...])
+            } else {
+                pathAndSuffix = "/"
+            }
+        } else if value.hasPrefix("?") || value.hasPrefix("#") || value.isEmpty {
+            pathAndSuffix = ""
+        } else {
+            pathAndSuffix = value
+        }
+
+        let pathEnd = pathAndSuffix.indices.first { index in
+            pathAndSuffix[index] == "?" || pathAndSuffix[index] == "#"
+        } ?? pathAndSuffix.endIndex
+        let path = String(pathAndSuffix[..<pathEnd])
+        if path.isEmpty {
+            return []
+        }
+
+        let parts = path.split(separator: "/", omittingEmptySubsequences: false)
+        let hasLeadingSlash = parts.first == ""
+        let hasTrailingSlash = parts.last == ""
+        let segments = hasLeadingSlash
+            ? (hasTrailingSlash ? parts.dropFirst().dropLast() : parts.dropFirst())
+            : (hasTrailingSlash ? parts.dropLast() : parts[...])
+        if segments.contains(where: { $0.isEmpty }) {
+            return nil
+        }
+
+        var decoded: [String] = []
+        for segment in segments {
+            guard let value = String(segment).removingPercentEncoding, value != ".", value != ".." else {
+                return nil
+            }
+            decoded.append(value)
+        }
+
+        return decoded
+    }
+
+    private func queryValue(_ url: URL, name: String) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?
+            .first { $0.name == name }?
+            .value
+    }
+
+    private func normalizedURLString(_ url: URL, excluding excludedNames: Set<String>) -> String {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url.absoluteString
+        }
+        let queryItems = components.queryItems?
+            .filter { !excludedNames.contains($0.name) }
+            .sorted {
+                if $0.name == $1.name {
+                    return ($0.value ?? "") < ($1.value ?? "")
+                }
+                return $0.name < $1.name
+            }
+        components.queryItems = queryItems?.isEmpty == false ? queryItems : nil
+
+        return components.url?.absoluteString ?? url.absoluteString
+    }
+
+    private func sortedQuery(_ url: URL, excluding excludedNames: Set<String>) -> String {
+        guard let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
+            return ""
+        }
+
+        return queryItems
+            .filter { !excludedNames.contains($0.name) }
+            .sorted {
+                if $0.name == $1.name {
+                    return ($0.value ?? "") < ($1.value ?? "")
+                }
+                return $0.name < $1.name
+            }
+            .map { item in
+                if let value = item.value {
+                    return "\(encodedQueryComponent(item.name))=\(encodedQueryComponent(value))"
+                }
+                return encodedQueryComponent(item.name)
+            }
+            .joined(separator: "&")
+    }
+
+    private func encodedQueryComponent(_ value: String) -> String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&=+")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
     private func object(_ value: [String: Any], key: String, context: String) throws -> [String: Any] {
