@@ -9,7 +9,6 @@ import type {
   OpenPullRequest,
 } from "./clients/github-types.ts";
 import type { SnykIssue, SnykIssueSnapshot } from "./clients/snyk-types.ts";
-import { resetCache } from "./credential-store.ts";
 import { buildMenuTree } from "./menu.ts";
 import { setMenuListActionClientsForTest } from "./menu-list-actions.ts";
 import type { MenuAction } from "./menu-types.ts";
@@ -39,7 +38,6 @@ function withConfiguredServiceMenu<T>(serviceLabel: string, action: () => T): T 
     process.env.JIRA_EMAIL = "dev@example.com";
     process.env.JIRA_API_TOKEN = "test-jira-token";
   }
-  resetCache();
 
   try {
     return action();
@@ -69,7 +67,6 @@ function withConfiguredServiceMenu<T>(serviceLabel: string, action: () => T): T 
     } else {
       process.env.JIRA_API_TOKEN = originalEnv.jiraToken;
     }
-    resetCache();
   }
 }
 

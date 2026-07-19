@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { hasCredentials, listOpenTickets, saveCredentials } from "./jira.ts";
-import { resetCache, save } from "../credential-store.ts";
+import { save } from "../credential-store.ts";
 import * as support from "./jira-test-support.ts";
 
 describe("jira credentials", { concurrency: false }, () => {
@@ -26,7 +26,6 @@ describe("jira credentials", { concurrency: false }, () => {
     const secretsPath = path.join(context.testDir, "secrets.json");
     fs.mkdirSync(path.dirname(secretsPath), { recursive: true });
     fs.writeFileSync(secretsPath, "not json", "utf-8");
-    resetCache();
 
     assert.equal(hasCredentials(), false);
   });

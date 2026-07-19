@@ -10,7 +10,6 @@ import { describe, test } from "node:test";
 import * as github from "./clients/github.ts";
 import * as jira from "./clients/jira.ts";
 import * as snyk from "./clients/snyk.ts";
-import { resetCache } from "./credential-store.ts";
 import { ENV } from "./config-model.ts";
 import { SUPPRESS_ACTIVITY_ENV } from "./commands/command-utils.ts";
 import { buildConfigurationSummary } from "./config-summary.ts";
@@ -64,12 +63,10 @@ async function withIsolatedCredentialConfig(action: () => Promise<void> | void):
   delete process.env[ENV.JIRA_EMAIL];
   delete process.env[ENV.JIRA_API_TOKEN];
   delete process.env[ENV.JIRA_CLOUD_ID];
-  resetCache();
 
   try {
     await action();
   } finally {
-    resetCache();
     if (originalEnv.configDir === undefined) {
       delete process.env[ENV.CONFIG_DIR];
     } else {

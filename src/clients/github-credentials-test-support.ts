@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach } from "node:test";
 
-import { resetCache } from "../credential-store.ts";
 
 export interface GitHubCredentialsTestContext {
   readonly testDir: string;
@@ -21,11 +20,9 @@ export function setupGitHubCredentialsTest(): GitHubCredentialsTestContext {
     testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-github-credentials-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.GITHUB_TOKEN;
-    resetCache();
   });
 
   afterEach(() => {
-    resetCache();
 
     if (originalConfigDir === undefined) {
       delete process.env.TRIAGE_COMPANION_CONFIG_DIR;

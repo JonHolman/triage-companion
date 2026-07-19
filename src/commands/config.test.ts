@@ -8,7 +8,6 @@ import { Command } from "commander";
 import { register } from "./config.ts";
 import { findCommand, runRegisteredCommand } from "./command-test-support.ts";
 import { readSearchRootsConfig } from "../config.ts";
-import { resetCache } from "../credential-store.ts";
 
 let originalConfigDir: string | undefined;
 let originalSearchRootsEnv: string | undefined;
@@ -20,11 +19,9 @@ beforeEach(() => {
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-config-command-"));
   process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
   delete process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS;
-  resetCache();
 });
 
 afterEach(() => {
-  resetCache();
   if (originalConfigDir === undefined) {
     delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
   } else {

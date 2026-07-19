@@ -7,8 +7,6 @@ import { inlineErrorText, isRecord } from "./text.ts";
 
 const SEPARATOR = String.fromCharCode(31);
 
-let cachedValues: Record<string, string> | null = null;
-
 export interface CredentialUpdate {
   service: string;
   account: string;
@@ -17,10 +15,6 @@ export interface CredentialUpdate {
 
 function emptyValues(): Record<string, string> {
   return Object.create(null) as Record<string, string>;
-}
-
-function cloneValues(values: Record<string, string>): Record<string, string> {
-  return Object.assign(emptyValues(), values) as Record<string, string>;
 }
 
 function toStringRecord(data: Record<string, unknown>): Record<string, string> {
@@ -40,11 +34,10 @@ function filePath(): string {
   return resolveConfigFilePath();
 }
 
+// The store file is shared with other processes (concurrent CLI invocations and
+// the macOS app), so values are always read fresh from disk; a cross-call cache
+// would let a long-lived menu process clobber credentials saved elsewhere.
 function loadValues(): Record<string, string> {
-  if (cachedValues !== null) {
-    return cachedValues;
-  }
-
   const storePath = filePath();
   const safeStorePath = inlineErrorText(storePath);
   let data: string;
@@ -58,8 +51,7 @@ function loadValues(): Record<string, string> {
       });
     }
 
-    cachedValues = emptyValues();
-    return cachedValues;
+    return emptyValues();
   }
 
   let parsed: unknown;
@@ -75,8 +67,7 @@ function loadValues(): Record<string, string> {
     throw new Error(`Credential store ${safeStorePath} must contain a JSON object.`);
   }
 
-  cachedValues = toStringRecord(parsed);
-  return cachedValues;
+  return toStringRecord(parsed);
 }
 
 function writeValues(values: Record<string, string>): void {
@@ -134,27 +125,24 @@ export function read(service: string, account: string): string | null {
 }
 
 export function save(service: string, account: string, value: string): void {
-  const values = cloneValues(loadValues());
+  const values = loadValues();
   values[toStoreKey(service, account)] = value;
   writeValues(values);
-  cachedValues = values;
 }
 
 export function remove(service: string, account: string): void {
-  const currentValues = loadValues();
+  const values = loadValues();
   const key = toStoreKey(service, account);
-  if (!Object.hasOwn(currentValues, key)) {
+  if (!Object.hasOwn(values, key)) {
     return;
   }
 
-  const values = cloneValues(currentValues);
   delete values[key];
   writeValues(values);
-  cachedValues = values;
 }
 
 export function updateMany(updates: readonly CredentialUpdate[]): void {
-  const values = cloneValues(loadValues());
+  const values = loadValues();
   let changed = false;
   for (const update of updates) {
     const key = toStoreKey(update.service, update.account);
@@ -176,7 +164,6 @@ export function updateMany(updates: readonly CredentialUpdate[]): void {
   }
 
   writeValues(values);
-  cachedValues = values;
 }
 
 export function readCredential(
@@ -194,8 +181,4 @@ export function readCredential(
   }
 
   return readRawEnvValue(envVar);
-}
-
-export function resetCache(): void {
-  cachedValues = null;
 }

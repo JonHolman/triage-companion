@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { after, afterEach, before, beforeEach, describe } from "node:test";
 
-import { resetCache } from "../credential-store.ts";
 
 export const describeWithExecutableWrapper = process.platform === "win32" ? describe.skip : describe;
 
@@ -110,7 +109,6 @@ export function setupGitHubRepositoryDiscoveryTest(): GitHubRepositoryDiscoveryT
     previousHome = process.env.HOME;
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.GITHUB_TOKEN;
-    resetCache();
 
     defaultGit = path.join(testDir, "git");
     writeFakeGitScript(defaultGit, "#!/bin/sh\nexit 0\n");
@@ -147,7 +145,6 @@ export function setupGitHubRepositoryDiscoveryTest(): GitHubRepositoryDiscoveryT
     } else {
       process.env.HOME = previousHome;
     }
-    resetCache();
   });
 
   afterEach(() => {
@@ -160,11 +157,9 @@ export function setupGitHubRepositoryDiscoveryTest(): GitHubRepositoryDiscoveryT
     } else {
       process.env.HOME = previousHome;
     }
-    resetCache();
   });
 
   after(() => {
-    resetCache();
 
     if (previousGit === undefined) {
       delete process.env.TRIAGE_COMPANION_GIT;

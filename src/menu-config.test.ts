@@ -6,7 +6,7 @@ import readline from "node:readline";
 import { describe, test } from "node:test";
 
 import { buildMenuTree } from "./menu.ts";
-import { resetCache, save } from "./credential-store.ts";
+import { save } from "./credential-store.ts";
 import { readSearchRootsConfig, saveSearchRoots } from "./config.ts";
 
 describe("menu configuration actions", () => {
@@ -16,7 +16,6 @@ describe("menu configuration actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-test-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = JSON.stringify([path.join(testDir, "env-root")]);
-    resetCache();
 
     const menu = buildMenuTree();
     const configurationMenu = menu.items.find((item) => item.label === "Configuration")?.submenu;
@@ -36,7 +35,6 @@ describe("menu configuration actions", () => {
       await resetSearchRoots.action();
     } finally {
       process.stdout.write = originalStdoutWrite;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -60,7 +58,6 @@ describe("menu configuration actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-invalid-env-search-roots-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = "{";
-    resetCache();
 
     const menu = buildMenuTree();
     const configurationMenu = menu.items.find((item) => item.label === "Configuration")?.submenu;
@@ -80,7 +77,6 @@ describe("menu configuration actions", () => {
       await resetSearchRoots.action();
     } finally {
       process.stdout.write = originalStdoutWrite;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -109,7 +105,6 @@ describe("menu configuration actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-edit-search-roots-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = JSON.stringify([path.join(testDir, "env-root")]);
-    resetCache();
     saveSearchRoots([path.join(testDir, "stored-root")]);
 
     readline.createInterface = ((() => ({
@@ -139,7 +134,6 @@ describe("menu configuration actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -167,7 +161,6 @@ describe("menu configuration actions", () => {
     fs.mkdirSync(storedRoot);
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS;
-    resetCache();
     saveSearchRoots([storedRoot]);
 
     readline.createInterface = ((() => ({
@@ -204,7 +197,6 @@ describe("menu configuration actions", () => {
       process.stdout.write = originalStdoutWrite;
       process.stderr.write = originalStderrWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -230,7 +222,6 @@ describe("menu configuration actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-invalid-env-edit-search-roots-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS = "{";
-    resetCache();
     saveSearchRoots([path.join(testDir, "stored-root")]);
 
     readline.createInterface = ((() => ({
@@ -260,7 +251,6 @@ describe("menu configuration actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -293,7 +283,6 @@ describe("menu configuration actions", () => {
     fs.mkdirSync(existing);
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS;
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) =>
@@ -321,7 +310,6 @@ describe("menu configuration actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -351,7 +339,6 @@ describe("menu configuration actions", () => {
     fs.mkdirSync(savedRoot);
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS;
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) =>
@@ -383,7 +370,6 @@ describe("menu configuration actions", () => {
       process.chdir(previousCwd);
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -411,9 +397,7 @@ describe("menu configuration actions", () => {
     fs.mkdirSync(savedRoot);
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.TRIAGE_COMPANION_GIT_SEARCH_ROOTS;
-    resetCache();
     save("Triage Companion-Config", "git-search-roots", "[1,\u000b2]");
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) =>
@@ -443,7 +427,6 @@ describe("menu configuration actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {

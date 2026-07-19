@@ -4,7 +4,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { listMyOpenPullRequests } from "./github.ts";
-import { resetCache } from "../credential-store.ts";
 import { withMockFetch } from "./fetch-mock-test-support.ts";
 import * as support from "./github-test-support.ts";
 
@@ -72,7 +71,6 @@ support.describeWithExecutableWrapper("github.ts local repository discovery", { 
       support.originOnlyGitScript('printf "git@example.com:team/internal-tool.git\\n"'),
     );
     fs.writeFileSync(path.join(context.testDir, "secrets.json"), "{", "utf-8");
-    resetCache();
 
     try {
       await withMockFetch(rejectNetwork, async () => {
@@ -85,7 +83,6 @@ support.describeWithExecutableWrapper("github.ts local repository discovery", { 
       });
     } finally {
       fs.rmSync(path.join(context.testDir, "secrets.json"), { force: true });
-      resetCache();
     }
   });
 

@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach } from "node:test";
 
-import { resetCache } from "../credential-store.ts";
 import { routeHandler, withMockFetch } from "./fetch-mock-test-support.ts";
 
 export interface SnykTestContext {
@@ -29,11 +28,9 @@ export function setupSnykClientTest(): SnykTestContext {
     delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
     delete process.env.TRIAGE_COMPANION_SNYK_ORGANIZATION_IDS;
 
-    resetCache();
   });
 
   afterEach(() => {
-    resetCache();
 
     if (originalConfigDir === undefined) {
       delete process.env.TRIAGE_COMPANION_CONFIG_DIR;

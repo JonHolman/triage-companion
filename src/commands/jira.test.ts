@@ -10,7 +10,6 @@ import { findCommand, optionLongNames, runRegisteredCommand } from "./command-te
 import { hasCredentials, saveCredentials } from "../clients/jira.ts";
 import { withMockFetch } from "../clients/fetch-mock-test-support.ts";
 import * as support from "../clients/jira-test-support.ts";
-import { resetCache } from "../credential-store.ts";
 
 let originalConfigDir: string | undefined;
 let originalBaseURL: string | undefined;
@@ -31,11 +30,9 @@ beforeEach(() => {
   delete process.env.JIRA_EMAIL;
   delete process.env.JIRA_API_TOKEN;
   delete process.env.JIRA_CLOUD_ID;
-  resetCache();
 });
 
 afterEach(() => {
-  resetCache();
   if (originalConfigDir === undefined) {
     delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
   } else {
@@ -224,7 +221,6 @@ describe("jira command registration", () => {
       "secret-jira-token",
     ]);
 
-    resetCache();
     delete process.env.JIRA_BASE_URL;
 
     assert.equal(hasCredentials(), true);
@@ -243,7 +239,6 @@ describe("jira command registration", () => {
       "secret-jira-token",
     ]);
 
-    resetCache();
     delete process.env.JIRA_BASE_URL;
 
     assert.equal(hasCredentials(), true);

@@ -8,7 +8,6 @@ import { Command } from "commander";
 import { parseSeverityFilter, register } from "./snyk.ts";
 import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 import { currentAPIBaseURL, hasToken, saveToken } from "../clients/snyk.ts";
-import { resetCache } from "../credential-store.ts";
 
 let originalConfigDir: string | undefined;
 let originalSnykToken: string | undefined;
@@ -23,11 +22,9 @@ beforeEach(() => {
   process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
   delete process.env.SNYK_TOKEN;
   delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
-  resetCache();
 });
 
 afterEach(() => {
-  resetCache();
   if (originalConfigDir === undefined) {
     delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
   } else {
@@ -161,7 +158,6 @@ describe("snyk command", () => {
       "https://api.snyk.io/rest",
     ]);
 
-    resetCache();
     delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
 
     assert.equal(currentAPIBaseURL(), "https://api.snyk.io/rest");
@@ -178,7 +174,6 @@ describe("snyk command", () => {
       "https://api.snyk.io/rest",
     ]);
 
-    resetCache();
     delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
 
     assert.equal(currentAPIBaseURL(), "https://api.snyk.io/rest");

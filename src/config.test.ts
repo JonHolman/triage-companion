@@ -12,7 +12,7 @@ import {
   readSearchRootsConfig,
   clearSearchRoots,
 } from "./config.ts";
-import { resetCache, save } from "./credential-store.ts";
+import { save } from "./credential-store.ts";
 
 const GIT_SEARCH_ROOTS_ENV = ENV.GIT_SEARCH_ROOTS;
 
@@ -31,7 +31,6 @@ beforeEach(() => {
   configDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-config-"));
   process.env.TRIAGE_COMPANION_CONFIG_DIR = configDir;
   process.env[GIT_SEARCH_ROOTS_ENV] = "";
-  resetCache();
   clearSearchRoots();
 });
 
@@ -56,7 +55,6 @@ afterEach(() => {
 
   fs.rmSync(rootBase, { recursive: true, force: true });
   fs.rmSync(configDir, { recursive: true, force: true });
-  resetCache();
 });
 
 describe("config search roots", () => {

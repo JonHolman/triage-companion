@@ -4,7 +4,6 @@ import path from "node:path";
 import { afterEach, beforeEach } from "node:test";
 
 import { ENV } from "./config.ts";
-import { resetCache } from "./credential-store.ts";
 
 export function setupConfigSummaryTest(): { readonly testDir: string } {
   const state = { testDir: "" };
@@ -44,11 +43,9 @@ export function setupConfigSummaryTest(): { readonly testDir: string } {
     delete process.env.JIRA_API_TOKEN;
     delete process.env.JIRA_CLOUD_ID;
     delete process.env[ENV.GITHUB_PR_IGNORE_BRANCHES];
-    resetCache();
   });
 
   afterEach(() => {
-    resetCache();
     if (originalConfigDir === undefined) {
       delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
     } else {

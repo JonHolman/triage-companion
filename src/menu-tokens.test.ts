@@ -8,7 +8,6 @@ import { describe, test } from "node:test";
 import { hasToken as hasGitHubToken, saveToken as saveGitHubToken } from "./clients/github.ts";
 import { hasToken as hasSnykToken } from "./clients/snyk.ts";
 import { buildMenuTree, runMenuAction } from "./menu.ts";
-import { resetCache } from "./credential-store.ts";
 import type { MenuNode } from "./menu-types.ts";
 
 function configurationMenu(): MenuNode {
@@ -27,7 +26,6 @@ describe("menu token actions", () => {
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.JIRA_API_TOKEN = "env-jira-token";
     delete process.env.JIRA_CLOUD_ID;
-    resetCache();
 
     const answers = [
       "https://saved.atlassian.net",
@@ -58,7 +56,6 @@ describe("menu token actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -86,7 +83,6 @@ describe("menu token actions", () => {
     const originalGitHubToken = process.env.GITHUB_TOKEN;
     const originalCreateInterface = readline.createInterface;
     process.env.GITHUB_TOKEN = "env-\ngithub-token";
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback("remove"),
@@ -111,7 +107,6 @@ describe("menu token actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalGitHubToken === undefined) {
         delete process.env.GITHUB_TOKEN;
       } else {
@@ -128,7 +123,6 @@ describe("menu token actions", () => {
     const originalSnykToken = process.env.SNYK_TOKEN;
     const originalCreateInterface = readline.createInterface;
     process.env.SNYK_TOKEN = "env-\nsnyk-token";
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback("remove"),
@@ -153,7 +147,6 @@ describe("menu token actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalSnykToken === undefined) {
         delete process.env.SNYK_TOKEN;
       } else {
@@ -173,7 +166,6 @@ describe("menu token actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-github-token-cancel-remove-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.GITHUB_TOKEN;
-    resetCache();
     saveGitHubToken("github-token");
 
     readline.createInterface = ((() => ({
@@ -199,7 +191,6 @@ describe("menu token actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -224,7 +215,6 @@ describe("menu token actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-github-token-whitespace-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.GITHUB_TOKEN;
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback(" github-token "),
@@ -258,7 +248,6 @@ describe("menu token actions", () => {
       process.stdout.write = originalStdoutWrite;
       process.stderr.write = originalStderrWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -284,7 +273,6 @@ describe("menu token actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-snyk-token-whitespace-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.SNYK_TOKEN;
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback(" snyk-token "),
@@ -318,7 +306,6 @@ describe("menu token actions", () => {
       process.stdout.write = originalStdoutWrite;
       process.stderr.write = originalStderrWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {

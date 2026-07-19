@@ -5,7 +5,7 @@ import { describe, test } from "node:test";
 
 import { buildConfigurationSummary } from "./config-summary.ts";
 import { ENV, saveSearchRoots } from "./config.ts";
-import { configFilePath, resetCache, save } from "./credential-store.ts";
+import { configFilePath, save } from "./credential-store.ts";
 import { setupConfigSummaryTest } from "./config-summary-test-support.ts";
 
 const configSummaryTest = setupConfigSummaryTest();
@@ -82,7 +82,6 @@ describe("configuration summary", () => {
     const envRoot = path.join(configSummaryTest.testDir, "env-root");
     fs.mkdirSync(envRoot);
     process.env[ENV.GIT_SEARCH_ROOTS] = JSON.stringify([envRoot]);
-    resetCache();
 
     const summary = buildConfigurationSummary();
 
@@ -104,7 +103,6 @@ describe("configuration summary", () => {
     fs.mkdirSync(path.dirname(configFilePath()), { recursive: true });
     fs.writeFileSync(configFilePath(), "not json", "utf-8");
     process.env.GITHUB_TOKEN = "env-github-token";
-    resetCache();
 
     const summary = buildConfigurationSummary();
 
@@ -151,7 +149,6 @@ describe("configuration summary", () => {
   test("reports credential store errors without exposing secrets", () => {
     fs.mkdirSync(path.dirname(configFilePath()), { recursive: true });
     fs.writeFileSync(configFilePath(), "not json", "utf-8");
-    resetCache();
 
     const summary = buildConfigurationSummary();
 
@@ -169,7 +166,6 @@ describe("configuration summary", () => {
 
       return originalReadFileSync(...args);
     }) as typeof fs.readFileSync;
-    resetCache();
 
     try {
       const summary = buildConfigurationSummary();
@@ -177,7 +173,6 @@ describe("configuration summary", () => {
       assert.equal(summary.includes("\t"), false);
     } finally {
       fs.readFileSync = originalReadFileSync;
-      resetCache();
     }
   });
 

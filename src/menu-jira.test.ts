@@ -7,7 +7,6 @@ import { describe, test } from "node:test";
 
 import { hasCredentials as hasJiraCredentials } from "./clients/jira.ts";
 import { buildMenuTree, runMenuAction } from "./menu.ts";
-import { resetCache } from "./credential-store.ts";
 
 describe("menu Jira actions", () => {
   test("reports invalid Jira base URL env overrides when saving from the menu", async () => {
@@ -19,7 +18,6 @@ describe("menu Jira actions", () => {
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.JIRA_BASE_URL = "http://env.atlassian.net";
     delete process.env.JIRA_CLOUD_ID;
-    resetCache();
 
     const answers = [
       "https://saved.atlassian.net",
@@ -51,7 +49,6 @@ describe("menu Jira actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -89,7 +86,6 @@ describe("menu Jira actions", () => {
     delete process.env.JIRA_EMAIL;
     delete process.env.JIRA_API_TOKEN;
     delete process.env.JIRA_CLOUD_ID;
-    resetCache();
 
     const answers = [
       " https://saved.atlassian.net ",
@@ -130,7 +126,6 @@ describe("menu Jira actions", () => {
       process.stdout.write = originalStdoutWrite;
       process.stderr.write = originalStderrWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -175,7 +170,6 @@ describe("menu Jira actions", () => {
     process.env.JIRA_EMAIL = "env\n@example.com";
     process.env.JIRA_API_TOKEN = "env-\njira-token";
     delete process.env.JIRA_CLOUD_ID;
-    resetCache();
 
     const answers = [
       "https://saved.atlassian.net",
@@ -207,7 +201,6 @@ describe("menu Jira actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {

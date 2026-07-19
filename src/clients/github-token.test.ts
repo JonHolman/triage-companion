@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { hasToken, resolveAuthenticatedLogin, saveToken } from "./github.ts";
-import { resetCache, save } from "../credential-store.ts";
+import { save } from "../credential-store.ts";
 import { withMockFetch } from "./fetch-mock-test-support.ts";
 import { jsonResponse, setupGitHubCredentialsTest } from "./github-credentials-test-support.ts";
 
@@ -23,7 +23,6 @@ describe("github token and authenticated login", { concurrency: false }, () => {
   test("does not use env token when the persisted store is unreadable", async () => {
     fs.mkdirSync(path.dirname(path.join(context.testDir, "secrets.json")), { recursive: true });
     fs.writeFileSync(path.join(context.testDir, "secrets.json"), "not json", "utf-8");
-    resetCache();
     process.env.GITHUB_TOKEN = "github-env-token";
 
     assert.equal(hasToken(), false);
@@ -36,7 +35,6 @@ describe("github token and authenticated login", { concurrency: false }, () => {
   test("returns false when the persisted store is unreadable and no env token is set", () => {
     fs.mkdirSync(path.dirname(path.join(context.testDir, "secrets.json")), { recursive: true });
     fs.writeFileSync(path.join(context.testDir, "secrets.json"), "not json", "utf-8");
-    resetCache();
 
     assert.equal(hasToken(), false);
   });

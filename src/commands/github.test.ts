@@ -8,7 +8,6 @@ import { Command } from "commander";
 import { register } from "./github.ts";
 import { findCommand, optionLongNames, runRegisteredCommand } from "./command-test-support.ts";
 import { hasToken, saveToken } from "../clients/github.ts";
-import { resetCache } from "../credential-store.ts";
 
 async function runRegisteredCommandCapturingStderr(
   registerCommand: (program: Command) => void,
@@ -64,11 +63,9 @@ beforeEach(() => {
   process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
   delete process.env.GITHUB_TOKEN;
   delete process.env.TRIAGE_COMPANION_GITHUB_PR_AUTHOR_REGEX;
-  resetCache();
 });
 
 afterEach(() => {
-  resetCache();
   if (originalConfigDir === undefined) {
     delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
   } else {

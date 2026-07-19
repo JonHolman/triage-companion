@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { currentAPIBaseURL, listOpenIssues, saveAPIBaseURL } from "./snyk.ts";
-import { resetCache, save } from "../credential-store.ts";
+import { save } from "../credential-store.ts";
 import * as support from "./snyk-test-support.ts";
 
 describe("snyk base url", { concurrency: false }, () => {
@@ -90,7 +90,6 @@ describe("snyk base url", { concurrency: false }, () => {
   test("rejects unreadable persisted API base URL config instead of defaulting", () => {
     const configPath = path.join(context.testDir, "secrets.json");
     fs.writeFileSync(configPath, "not json", "utf-8");
-    resetCache();
 
     assert.throws(() => currentAPIBaseURL(), /Credential store .* is not valid JSON/);
   });

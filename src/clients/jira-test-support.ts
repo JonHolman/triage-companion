@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach } from "node:test";
 
-import { resetCache } from "../credential-store.ts";
 
 export interface JiraTestContext {
   readonly testDir: string;
@@ -31,11 +30,9 @@ export function setupJiraClientTest(): JiraTestContext {
     delete process.env.JIRA_EMAIL;
     delete process.env.JIRA_API_TOKEN;
     delete process.env.JIRA_CLOUD_ID;
-    resetCache();
   });
 
   afterEach(() => {
-    resetCache();
 
     if (originalConfigDir === undefined) {
       delete process.env.TRIAGE_COMPANION_CONFIG_DIR;

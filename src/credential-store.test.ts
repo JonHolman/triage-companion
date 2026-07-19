@@ -9,7 +9,6 @@ import {
   read,
   readCredential,
   remove,
-  resetCache,
   save,
   updateMany,
 } from "./credential-store.ts";
@@ -21,11 +20,9 @@ beforeEach(() => {
   originalConfigDir = process.env.TRIAGE_COMPANION_CONFIG_DIR;
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-credentials-"));
   process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
-  resetCache();
 });
 
 afterEach(() => {
-  resetCache();
   if (originalConfigDir === undefined) {
     delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
   } else {
@@ -60,6 +57,21 @@ describe("credential-store", () => {
     assert.equal(read("triage", "base-url"), " https://example.test ");
     assert.equal(read("triage", "email"), null);
     assert.equal(read("triage", "token"), null);
+  });
+
+  test("preserves values written by other processes after this process has read the store", () => {
+    save("triage", "base-url", "https://example.test");
+    assert.equal(read("github", "token"), null);
+
+    const external = JSON.parse(fs.readFileSync(configFilePath(), "utf-8")) as Record<string, string>;
+    external[`github${String.fromCharCode(31)}token`] = "external-token";
+    fs.writeFileSync(configFilePath(), JSON.stringify(external), { encoding: "utf-8" });
+
+    save("triage", "email", "dev@example.test");
+
+    assert.equal(read("github", "token"), "external-token");
+    assert.equal(read("triage", "base-url"), "https://example.test");
+    assert.equal(read("triage", "email"), "dev@example.test");
   });
 
   test("does not create a store file for missing removals", () => {
@@ -129,7 +141,6 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, "not json", { encoding: "utf-8" });
-    resetCache();
     process.env.SOME_TEST_TOKEN = "env-token";
 
     try {
@@ -150,7 +161,6 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, "not json", { encoding: "utf-8" });
-    resetCache();
 
     assert.throws(() => read("triage", "token"), /not valid JSON/);
   });
@@ -159,7 +169,6 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, '{"github": ghp_supersecrettoken123}', { encoding: "utf-8" });
-    resetCache();
 
     assert.throws(
       () => read("triage", "token"),
@@ -191,7 +200,6 @@ describe("credential-store", () => {
     try {
       delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       process.env.HOME = badHome;
-      resetCache();
 
       assert.throws(
         () => read("triage", "token"),
@@ -213,7 +221,6 @@ describe("credential-store", () => {
       } else {
         process.env.TRIAGE_COMPANION_CONFIG_DIR = originalConfigDirValue;
       }
-      resetCache();
       fs.rmSync(homeRoot, { recursive: true, force: true });
     }
   });
@@ -222,7 +229,6 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, JSON.stringify({ broken: 123 }), { encoding: "utf-8" });
-    resetCache();
 
     assert.throws(() => read("triage", "token"), /must be a string/);
   });
@@ -231,7 +237,6 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, JSON.stringify({ "bad\tkey": 123 }), { encoding: "utf-8" });
-    resetCache();
 
     assert.throws(
       () => read("triage", "token"),
@@ -248,7 +253,6 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, '{"__proto__":"ignored","constructor":"ignored"}', { encoding: "utf-8" });
-    resetCache();
 
     assert.equal(read("triage", "token"), null);
     save("triage", "token", "abc123");
@@ -259,17 +263,15 @@ describe("credential-store", () => {
     const fp = configFilePath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     fs.writeFileSync(fp, "not json", { encoding: "utf-8" });
-    resetCache();
 
     assert.throws(() => save("triage", "token", "abc123"), /not valid JSON/);
     assert.equal(fs.readFileSync(fp, "utf-8"), "not json");
   });
 
-  test("does not update cached values when saving fails", () => {
+  test("does not serve values when saving fails", () => {
     const blockedPath = path.join(testDir, "blocked");
     fs.writeFileSync(blockedPath, "not a directory");
     process.env.TRIAGE_COMPANION_CONFIG_DIR = blockedPath;
-    resetCache();
 
     assert.throws(() => save("triage", "token", "abc123"));
     assert.throws(() => read("triage", "token"));

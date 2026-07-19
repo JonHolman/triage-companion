@@ -8,7 +8,6 @@ import { describe, test } from "node:test";
 import { currentAPIBaseURL } from "./clients/snyk.ts";
 import { DEFAULT_SNYK_API_BASE_URL } from "./config-model.ts";
 import { buildMenuTree, runMenuAction } from "./menu.ts";
-import { resetCache } from "./credential-store.ts";
 
 describe("menu Snyk actions", () => {
   test("reports invalid Snyk API base URL env overrides when saving from the menu", async () => {
@@ -18,7 +17,6 @@ describe("menu Snyk actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-snyk-api-base-url-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL = "https://example.com/rest";
-    resetCache();
 
     const answers = ["https://api.snyk.io/rest"];
 
@@ -46,7 +44,6 @@ describe("menu Snyk actions", () => {
     } finally {
       process.stdout.write = originalStdoutWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -71,7 +68,6 @@ describe("menu Snyk actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-snyk-reset-api-base-url-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
-    resetCache();
 
     const configurationMenu = buildMenuTree().items.find((item) => item.label === "Configuration")?.submenu;
     const resetAPIBaseURL = configurationMenu?.items.find((item) => item.label === "Reset Snyk API base URL");
@@ -90,7 +86,6 @@ describe("menu Snyk actions", () => {
       await resetAPIBaseURL.action();
     } finally {
       process.stdout.write = originalStdoutWrite;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {
@@ -116,7 +111,6 @@ describe("menu Snyk actions", () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "triage-menu-snyk-api-base-url-whitespace-"));
     process.env.TRIAGE_COMPANION_CONFIG_DIR = testDir;
     delete process.env.TRIAGE_COMPANION_SNYK_API_BASE_URL;
-    resetCache();
 
     readline.createInterface = ((() => ({
       question: (_prompt: string, callback: (value: string) => void) => callback(" https://api.snyk.io/rest "),
@@ -151,7 +145,6 @@ describe("menu Snyk actions", () => {
       process.stdout.write = originalStdoutWrite;
       process.stderr.write = originalStderrWrite;
       readline.createInterface = originalCreateInterface;
-      resetCache();
       if (originalConfigDir === undefined) {
         delete process.env.TRIAGE_COMPANION_CONFIG_DIR;
       } else {

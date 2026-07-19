@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { hasToken, listOpenIssues, saveToken } from "./snyk.ts";
-import { resetCache, save } from "../credential-store.ts";
+import { save } from "../credential-store.ts";
 import * as support from "./snyk-test-support.ts";
 
 describe("snyk token", { concurrency: false }, () => {
@@ -35,7 +35,6 @@ describe("snyk token", { concurrency: false }, () => {
     const secretsPath = path.join(context.testDir, "secrets.json");
     fs.mkdirSync(path.dirname(secretsPath), { recursive: true });
     fs.writeFileSync(secretsPath, "not json", "utf-8");
-    resetCache();
 
     assert.equal(hasToken(), false);
   });
@@ -44,7 +43,6 @@ describe("snyk token", { concurrency: false }, () => {
     const secretsPath = path.join(context.testDir, "secrets.json");
     fs.mkdirSync(path.dirname(secretsPath), { recursive: true });
     fs.writeFileSync(secretsPath, "not json", "utf-8");
-    resetCache();
     process.env.SNYK_TOKEN = "env-token";
 
     assert.equal(hasToken(), false);
