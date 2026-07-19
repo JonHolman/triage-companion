@@ -110,6 +110,25 @@ xcodegen -s apple/project.yml -p apple
 The macOS app reads and writes the same `~/Library/Application Support/Triage Companion/secrets.json` store as the CLI.
 The iOS app stores credentials in the app Keychain.
 
+## Android app
+
+The native Android app lives in `android/` and matches the iOS app feature for feature: credential setup, status, GitHub notifications, GitHub Dependabot alerts, failed GitHub Actions workflow runs discovered from notification repositories, Snyk open issues, and assigned Jira tickets.
+
+Build the debug APK (requires an Android SDK; point `local.properties` or `ANDROID_HOME` at it, and use JDK 17 or newer):
+
+```sh
+cd android
+./gradlew :app:assembleDebug
+```
+
+Install on a connected device or emulator:
+
+```sh
+./gradlew :app:installDebug
+```
+
+The Android app stores credentials in app-private storage encrypted with an AES key held in the Android Keystore, matching the iOS app's device-only Keychain storage.
+
 ## Setup
 
 ```sh
