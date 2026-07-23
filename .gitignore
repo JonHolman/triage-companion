@@ -1,4 +1,5 @@
 node_modules/
+/runs
 secrets.json
 .env
 .env.*
