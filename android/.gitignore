@@ -2,3 +2,9 @@
 build/
 local.properties
 .kotlin/
+
+# Keep handoff/todo docs trackable, regardless of filename casing.
+![Hh][Aa][Nn][Dd][Oo][Ff][Ff].[Mm][Dd]
+![Hh][Aa][Nn][Dd][Oo][Ff][Ff]*.[Mm][Dd]
+![Tt][Oo][Dd][Oo].[Mm][Dd]
+![Tt][Oo][Dd][Oo]*.[Mm][Dd]
